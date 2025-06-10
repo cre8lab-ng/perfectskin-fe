@@ -9,7 +9,6 @@ const useAccessToken = create((set) => {
     try {
       const token = await getAccessToken();
       set({ accessToken: token, isLoading: false });
-      console.log("Token generated automatically:", token);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to generate token";
@@ -33,7 +32,6 @@ const useAccessToken = create((set) => {
       try {
         const token = await getAccessToken();
         set({ accessToken: token, isLoading: false });
-        console.log("Token generated on demand:", token);
         return token;
       } catch (error) {
         const errorMessage =

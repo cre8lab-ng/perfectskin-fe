@@ -26,18 +26,21 @@ export async function uploadImage(file: File, accessToken: string) {
       redirect: "follow",
     };
 
-    fetch(
+    const response = await fetch(
       "https://yce-api-01.perfectcorp.com/s2s/v1.1/file/skin-analysis",
       requestOptions
-    )
-      .then((response) => response.text())
-      .then((result) => console.log(result))
-      .catch((error) => console.error(error));
+    );
+
+    const result = await response.json(); 
+
+    return result.result.files[0];
+
   } catch (error) {
     console.error("Upload image error:", error);
     throw error;
   }
 }
+
 
 export interface SkinAnalysisAction {
   id: number;
@@ -66,7 +69,7 @@ export interface SkinAnalysisResponse {
 export async function runSkinAnalysis(payload: SkinAnalysisPayload, accessToken: string): Promise<SkinAnalysisResponse> {
   try {
     const response = await api.post(
-      `${apiEndpoints.skinAnalysis.RUN_SKIN_ANALYSIS}`,
+      "https://yce-api-01.perfectcorp.com/s2s/v1.0/task/skin-analysis",
       payload,
       {
         headers: {

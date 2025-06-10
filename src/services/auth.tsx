@@ -29,18 +29,11 @@ export async function getAccessToken() {
       client_id: perfectSkinApiKey,
       id_token: createIdToken(perfectSkinApiKey, perfectSkinSecretKey),
     };
-
-    console.log('Payload with encrypted id_token:', {
-      client_id: perfectSkinApiKey?.substring(0, 10) + '...',
-      id_token: payload.id_token?.substring(0, 20) + '...',
-    });
-
     const response = await api.post(apiEndpoints.auth.GET_TOKEN, payload, {
       headers: {
         'Content-Type': 'application/json',
       },
     });
-console.log(response)
     return response?.result?.access_token;
   } catch (error: unknown) {
     console.error('Token generation failed:', error);
