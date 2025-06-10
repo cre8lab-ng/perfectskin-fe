@@ -1,7 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useAccessToken from "@/stores/useAccessToken";
 import { uploadImage } from "@/services/skinanalysis";
-import { analyzeSkinFeatures, checkSkinAnalysisStatus } from "@/services/skinanalysis"; // Import the new functions
+import {
+  analyzeSkinFeatures,
+  checkSkinAnalysisStatus,
+} from "@/services/skinanalysis"; 
+import { getAllTags } from "@/services/woocommerce";
+import env from "@/config/env";
 
 export default function Home() {
   const accessToken = useAccessToken((s) => s.accessToken);
@@ -11,6 +16,9 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState(null);
+  const [tags, setTags] = useState([]);
+  const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
+
 
   // Function to poll analysis status
   const pollAnalysisStatus = async (taskId, accessToken) => {
@@ -22,19 +30,21 @@ export default function Home() {
       try {
         const status = await checkSkinAnalysisStatus(taskId, accessToken);
         setAnalysisStatus(status);
-        
+
         // Check if analysis is complete (adjust condition based on actual API response)
         if (status.status === "completed" || status.result) {
           setAnalyzing(false);
           return status;
         }
-        
+
         attempts++;
         if (attempts < maxAttempts) {
           setTimeout(poll, pollInterval);
         } else {
           setAnalyzing(false);
-          throw new Error("Analysis timeout - maximum polling attempts reached");
+          throw new Error(
+            "Analysis timeout - maximum polling attempts reached"
+          );
         }
       } catch (error) {
         setAnalyzing(false);
@@ -62,7 +72,7 @@ export default function Home() {
     try {
       // Upload the image
       const uploadResult = await uploadImage(file, accessToken);
-      console.log(uploadResult,"uploaded")
+      console.log(uploadResult, "uploaded");
       setUploadResponse(uploadResult);
     } catch (err) {
       console.error("Upload failed", err);
@@ -91,7 +101,7 @@ export default function Home() {
         accessToken,
         ["hd_wrinkle", "hd_pore", "hd_texture", "hd_acne"] // Choose your desired features
       );
-      
+
       setAnalysisResponse(analysisResult);
 
       // Poll for analysis completion
@@ -106,9 +116,27 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    async function fetchTags() {
+      try {
+        const data = await getAllTags(
+          perfectSkinConsumerKey!,
+          perfectSkinConsumerSecret!
+        );
+        setTags(data);
+      } catch (err) {
+        console.error("Failed to load product tags:", err);
+      }
+    }
+
+    fetchTags();
+  }, []);
+
   return (
     <div style={{ padding: "1rem" }}>
-      <p><strong>Take a picture and upload it for skin analysis</strong></p>
+      <p>
+        <strong>Take a picture and upload it for skin analysis</strong>
+      </p>
 
       <input
         type="file"
@@ -121,7 +149,9 @@ export default function Home() {
 
       {preview && (
         <div>
-          <p><strong>Preview:</strong></p>
+          <p>
+            <strong>Preview:</strong>
+          </p>
           <img
             src={preview}
             alt="Preview"
@@ -129,7 +159,6 @@ export default function Home() {
           />
         </div>
       )}
-
 
       {uploading && <p>Uploading image...</p>}
 
@@ -145,7 +174,7 @@ export default function Home() {
               border: "none",
               borderRadius: "5px",
               cursor: analyzing ? "not-allowed" : "pointer",
-              fontSize: "16px"
+              fontSize: "16px",
             }}
           >
             {analyzing ? "Analyzing..." : "Run Skin Analysis Now"}
@@ -157,8 +186,12 @@ export default function Home() {
 
       {uploadResponse && (
         <div style={{ marginTop: "1rem" }}>
-          <p><strong>Upload Response:</strong></p>
-          <pre style={{ fontSize: "12px", background: "#f5f5f5", padding: "10px" }}>
+          <p>
+            <strong>Upload Response:</strong>
+          </p>
+          <pre
+            style={{ fontSize: "12px", background: "#f5f5f5", padding: "10px" }}
+          >
             {JSON.stringify(uploadResponse, null, 2)}
           </pre>
         </div>
@@ -166,8 +199,12 @@ export default function Home() {
 
       {analysisResponse && (
         <div style={{ marginTop: "1rem" }}>
-          <p><strong>Analysis Started:</strong></p>
-          <pre style={{ fontSize: "12px", background: "#f0f8ff", padding: "10px" }}>
+          <p>
+            <strong>Analysis Started:</strong>
+          </p>
+          <pre
+            style={{ fontSize: "12px", background: "#f0f8ff", padding: "10px" }}
+          >
             {JSON.stringify(analysisResponse, null, 2)}
           </pre>
         </div>
@@ -175,10 +212,50 @@ export default function Home() {
 
       {analysisStatus && (
         <div style={{ marginTop: "1rem" }}>
-          <p><strong>Analysis Status:</strong></p>
-          <pre style={{ fontSize: "12px", background: "#f0fff0", padding: "10px" }}>
+          <p>
+            <strong>Analysis Status:</strong>
+          </p>
+          <pre
+            style={{ fontSize: "12px", background: "#f0fff0", padding: "10px" }}
+          >
             {JSON.stringify(analysisStatus, null, 2)}
           </pre>
+        </div>
+      )}
+
+      {tags.length > 0 && (
+        <div
+          style={{
+            marginTop: "2rem",
+            borderTop: "1px solid #ddd",
+            paddingTop: "1rem",
+          }}
+        >
+          <p>
+            <strong>Available Product Tags:</strong>
+          </p>
+          <ul
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.5rem",
+              listStyle: "none",
+              padding: 0,
+            }}
+          >
+            {tags.map((tag) => (
+              <li
+                key={tag.id}
+                style={{
+                  background: "#e0f7fa",
+                  padding: "6px 12px",
+                  borderRadius: "5px",
+                }}
+              >
+                {tag.name}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

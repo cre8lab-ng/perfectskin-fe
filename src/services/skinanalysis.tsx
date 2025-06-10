@@ -127,3 +127,5 @@ export async function checkSkinAnalysisStatus(taskId: string, accessToken: strin
     throw error;
   }
 }
+
+
