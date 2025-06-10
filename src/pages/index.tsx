@@ -16,43 +16,71 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState(null);
+  const [finalResults, setFinalResults] = useState(null);
   const [tags, setTags] = useState([]);
   const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
 
-
-  // Function to poll analysis status
+  // Improved polling function with better error handling and status checking
   const pollAnalysisStatus = async (taskId, accessToken) => {
     let attempts = 0;
-    const maxAttempts = 30; // Maximum polling attempts
-    const pollInterval = 2000; // Poll every 2 seconds
+    const maxAttempts = 30;
+    const pollInterval = 2000;
 
-    const poll = async () => {
-      try {
-        const status = await checkSkinAnalysisStatus(taskId, accessToken);
-        setAnalysisStatus(status);
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        try {
+          console.log(`Polling attempt ${attempts + 1} for task: ${taskId}`);
+          const status = await checkSkinAnalysisStatus(taskId, accessToken);
+          console.log('Status response:', status);
+          
+          setAnalysisStatus(status);
 
-        // Check if analysis is complete (adjust condition based on actual API response)
-        if (status.status === "completed" || status.result) {
-          setAnalyzing(false);
-          return status;
+          // Check for completion based on API documentation
+          if (status.result && status.result.status === "success") {
+            // Analysis completed successfully
+            setAnalyzing(false);
+            setFinalResults(status.result.results);
+            resolve(status);
+            return;
+          } else if (status.result && status.result.status === "error") {
+            // Analysis failed
+            setAnalyzing(false);
+            reject(new Error(`Analysis failed: ${status.result.error_message || 'Unknown error'}`));
+            return;
+          } else if (status.result && status.result.status === "running") {
+            // Still processing, continue polling
+            attempts++;
+            if (attempts < maxAttempts) {
+              setTimeout(poll, pollInterval);
+            } else {
+              setAnalyzing(false);
+              reject(new Error("Analysis timeout - maximum polling attempts reached"));
+            }
+          } else {
+            // Unexpected status format
+            attempts++;
+            if (attempts < maxAttempts) {
+              setTimeout(poll, pollInterval);
+            } else {
+              setAnalyzing(false);
+              reject(new Error("Analysis timeout - unexpected status format"));
+            }
+          }
+        } catch (error) {
+          console.error('Polling error:', error);
+          attempts++;
+          if (attempts < maxAttempts) {
+            // Retry on error
+            setTimeout(poll, pollInterval);
+          } else {
+            setAnalyzing(false);
+            reject(error);
+          }
         }
+      };
 
-        attempts++;
-        if (attempts < maxAttempts) {
-          setTimeout(poll, pollInterval);
-        } else {
-          setAnalyzing(false);
-          throw new Error(
-            "Analysis timeout - maximum polling attempts reached"
-          );
-        }
-      } catch (error) {
-        setAnalyzing(false);
-        throw error;
-      }
-    };
-
-    poll();
+      poll();
+    });
   };
 
   const handleCapture = async (e) => {
@@ -72,7 +100,7 @@ export default function Home() {
     try {
       // Upload the image
       const uploadResult = await uploadImage(file, accessToken);
-      console.log(uploadResult, "uploaded");
+      console.log('Upload result:', uploadResult);
       setUploadResponse(uploadResult);
     } catch (err) {
       console.error("Upload failed", err);
@@ -94,24 +122,39 @@ export default function Home() {
     }
 
     setAnalyzing(true);
+    setAnalysisStatus(null);
+    setFinalResults(null);
+    
     try {
       // Start skin analysis with the file ID from upload response
       const analysisResult = await analyzeSkinFeatures(
-        uploadResponse.file_id, // Use the file ID from upload response
+        uploadResponse.file_id,
         accessToken,
-        ["hd_wrinkle", "hd_pore", "hd_texture", "hd_acne"] // Choose your desired features
+        ["hd_wrinkle", "hd_pore", "hd_texture", "hd_acne"]
       );
 
+      console.log('Analysis started:', analysisResult);
       setAnalysisResponse(analysisResult);
 
-      // Poll for analysis completion
+      // Extract task_id from the response
+      let taskId;
+      console.log(taskId,"task")
       if (analysisResult.result && analysisResult.result.task_id) {
-        await pollAnalysisStatus(analysisResult.result.task_id, accessToken);
+        taskId = analysisResult.result.task_id;
+      } else if (analysisResult.task_id) {
+        taskId = analysisResult.task_id;
+      } else {
+        throw new Error("No task_id found in analysis response");
       }
+
+      console.log('Starting to poll for task:', taskId);
+      
+      // Poll for analysis completion
+      await pollAnalysisStatus(taskId, accessToken);
+      
     } catch (err) {
       console.error("Analysis failed", err);
       alert(`Analysis failed: ${err.message}`);
-    } finally {
       setAnalyzing(false);
     }
   };
@@ -119,18 +162,22 @@ export default function Home() {
   useEffect(() => {
     async function fetchTags() {
       try {
+        console.log("Starting fetchTags"); // check this logs
         const data = await getAllTags(
           perfectSkinConsumerKey!,
           perfectSkinConsumerSecret!
         );
+  
+        console.log("Data fetched:", data); // this one
         setTags(data);
       } catch (err) {
         console.error("Failed to load product tags:", err);
       }
     }
-
+  
     fetchTags();
   }, []);
+  
 
   return (
     <div style={{ padding: "1rem" }}>
@@ -141,7 +188,7 @@ export default function Home() {
       <input
         type="file"
         accept="image/*"
-        capture="environment" // Use "user" for front camera
+        capture="environment"
         onChange={handleCapture}
         style={{ margin: "1em 0" }}
         disabled={uploading}
@@ -182,7 +229,14 @@ export default function Home() {
         </div>
       )}
 
-      {analyzing && <p>Analyzing skin... This may take a few moments.</p>}
+      {analyzing && (
+        <div>
+          <p>Analyzing skin... This may take a few moments.</p>
+          {analysisStatus && analysisStatus.result && (
+            <p>Status: {analysisStatus.result.status}</p>
+          )}
+        </div>
+      )}
 
       {uploadResponse && (
         <div style={{ marginTop: "1rem" }}>
@@ -213,7 +267,7 @@ export default function Home() {
       {analysisStatus && (
         <div style={{ marginTop: "1rem" }}>
           <p>
-            <strong>Analysis Status:</strong>
+            <strong>Current Analysis Status:</strong>
           </p>
           <pre
             style={{ fontSize: "12px", background: "#f0fff0", padding: "10px" }}
@@ -223,7 +277,20 @@ export default function Home() {
         </div>
       )}
 
-      {tags.length > 0 && (
+      {finalResults && (
+        <div style={{ marginTop: "1rem" }}>
+          <p>
+            <strong>Final Analysis Results:</strong>
+          </p>
+          <pre
+            style={{ fontSize: "12px", background: "#fff0f0", padding: "10px" }}
+          >
+            {JSON.stringify(finalResults, null, 2)}
+          </pre>
+        </div>
+      )}
+
+      {tags?.length > 0 && (
         <div
           style={{
             marginTop: "2rem",

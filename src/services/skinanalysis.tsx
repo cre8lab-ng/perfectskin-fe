@@ -78,7 +78,7 @@ export async function runSkinAnalysis(payload: SkinAnalysisPayload, accessToken:
         }
       }
     );
-    return response.data;
+    return response;
   } catch (error) {
     throw error;
   }
@@ -104,6 +104,7 @@ export async function analyzeSkinFeatures(fileId: string, accessToken: string, f
 
   try {
     const result = await runSkinAnalysis(payload, accessToken);
+    console.log(result,"res")
     return result;
   } catch (error) {
     console.error('Skin analysis failed:', error);
@@ -111,11 +112,11 @@ export async function analyzeSkinFeatures(fileId: string, accessToken: string, f
   }
 }
 
-// Check skin analysis status (you'll need this to get results)
+// Check skin analysis status (corrected version)
 export async function checkSkinAnalysisStatus(taskId: string, accessToken: string) {
   try {
     const response = await api.get(
-      `${apiEndpoints.skinAnalysis.CHECK_STATUS}/${taskId}`,
+      `${apiEndpoints.skinAnalysis.CHECK_STATUS}?task_id=${taskId}`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`
