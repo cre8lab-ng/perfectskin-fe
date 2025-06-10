@@ -4,9 +4,11 @@ import { uploadImage } from "@/services/skinanalysis";
 import {
   analyzeSkinFeatures,
   checkSkinAnalysisStatus,
-} from "@/services/skinanalysis"; 
+} from "@/services/skinanalysis";
 import { getAllTags } from "@/services/woocommerce";
 import env from "@/config/env";
+import Header from "@/components/header";
+import Footer from "@/components/footer";
 
 export default function Home() {
   const accessToken = useAccessToken((s) => s.accessToken);
@@ -31,8 +33,8 @@ export default function Home() {
         try {
           console.log(`Polling attempt ${attempts + 1} for task: ${taskId}`);
           const status = await checkSkinAnalysisStatus(taskId, accessToken);
-          console.log('Status response:', status);
-          
+          console.log("Status response:", status);
+
           setAnalysisStatus(status);
 
           // Check for completion based on API documentation
@@ -45,7 +47,13 @@ export default function Home() {
           } else if (status.result && status.result.status === "error") {
             // Analysis failed
             setAnalyzing(false);
-            reject(new Error(`Analysis failed: ${status.result.error_message || 'Unknown error'}`));
+            reject(
+              new Error(
+                `Analysis failed: ${
+                  status.result.error_message || "Unknown error"
+                }`
+              )
+            );
             return;
           } else if (status.result && status.result.status === "running") {
             // Still processing, continue polling
@@ -54,7 +62,9 @@ export default function Home() {
               setTimeout(poll, pollInterval);
             } else {
               setAnalyzing(false);
-              reject(new Error("Analysis timeout - maximum polling attempts reached"));
+              reject(
+                new Error("Analysis timeout - maximum polling attempts reached")
+              );
             }
           } else {
             // Unexpected status format
@@ -67,7 +77,7 @@ export default function Home() {
             }
           }
         } catch (error) {
-          console.error('Polling error:', error);
+          console.error("Polling error:", error);
           attempts++;
           if (attempts < maxAttempts) {
             // Retry on error
@@ -100,7 +110,7 @@ export default function Home() {
     try {
       // Upload the image
       const uploadResult = await uploadImage(file, accessToken);
-      console.log('Upload result:', uploadResult);
+      console.log("Upload result:", uploadResult);
       setUploadResponse(uploadResult);
     } catch (err) {
       console.error("Upload failed", err);
@@ -124,7 +134,7 @@ export default function Home() {
     setAnalyzing(true);
     setAnalysisStatus(null);
     setFinalResults(null);
-    
+
     try {
       // Start skin analysis with the file ID from upload response
       const analysisResult = await analyzeSkinFeatures(
@@ -133,12 +143,12 @@ export default function Home() {
         ["hd_wrinkle", "hd_pore", "hd_texture", "hd_acne"]
       );
 
-      console.log('Analysis started:', analysisResult);
+      console.log("Analysis started:", analysisResult);
       setAnalysisResponse(analysisResult);
 
       // Extract task_id from the response
       let taskId;
-      console.log(taskId,"task")
+      console.log(taskId, "task");
       if (analysisResult.result && analysisResult.result.task_id) {
         taskId = analysisResult.result.task_id;
       } else if (analysisResult.task_id) {
@@ -147,11 +157,10 @@ export default function Home() {
         throw new Error("No task_id found in analysis response");
       }
 
-      console.log('Starting to poll for task:', taskId);
-      
+      console.log("Starting to poll for task:", taskId);
+
       // Poll for analysis completion
       await pollAnalysisStatus(taskId, accessToken);
-      
     } catch (err) {
       console.error("Analysis failed", err);
       alert(`Analysis failed: ${err.message}`);
@@ -167,164 +176,205 @@ export default function Home() {
           perfectSkinConsumerKey!,
           perfectSkinConsumerSecret!
         );
-  
+
         console.log("Data fetched:", data); // this one
         setTags(data);
       } catch (err) {
         console.error("Failed to load product tags:", err);
       }
     }
-  
+
     fetchTags();
   }, []);
-  
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <p>
-        <strong>Take a picture and upload it for skin analysis</strong>
-      </p>
+    <>
+      <Header />
+      <main
+        style={{
+          padding: "1rem",
+          backgroundImage: "url('/images/skinperfect.svg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          minHeight: "100vh",
+        }}
+      >
 
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleCapture}
-        style={{ margin: "1em 0" }}
-        disabled={uploading}
-      />
+<div
+  style={{
+    backgroundColor: "white",
+    padding: "2rem",
+    maxWidth: "600px",
+    margin: "2rem auto",
+    borderRadius: "12px",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+  }}
+>
+        <p>
+          <strong>Take a picture and upload it for skin analysis</strong>
+        </p>
 
-      {preview && (
-        <div>
-          <p>
-            <strong>Preview:</strong>
-          </p>
-          <img
-            src={preview}
-            alt="Preview"
-            style={{ maxWidth: "100%", height: "10rem", borderRadius: 8 }}
-          />
-        </div>
-      )}
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleCapture}
+          style={{ margin: "1em 0" }}
+          disabled={uploading}
+        />
 
-      {uploading && <p>Uploading image...</p>}
+        {preview && (
+          <div>
+            <p>
+              <strong>Preview:</strong>
+            </p>
+            <img
+              src={preview}
+              alt="Preview"
+              style={{ maxWidth: "100%", height: "10rem", borderRadius: 8 }}
+            />
+          </div>
+        )}
 
-      {uploadResponse && (
-        <div style={{ margin: "1rem 0" }}>
-          <button
-            onClick={handleRunAnalysis}
-            disabled={analyzing}
+        {uploading && <p>Uploading image...</p>}
+
+        {uploadResponse && (
+          <div style={{ margin: "1rem 0" }}>
+            <button
+              onClick={handleRunAnalysis}
+              disabled={analyzing}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: analyzing ? "#6c757d" : "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                cursor: analyzing ? "not-allowed" : "pointer",
+                fontSize: "16px",
+              }}
+            >
+              {analyzing ? "Analyzing..." : "Run Skin Analysis Now"}
+            </button>
+          </div>
+        )}
+
+        {analyzing && (
+          <div>
+            <p>Analyzing skin... This may take a few moments.</p>
+            {analysisStatus && analysisStatus.result && (
+              <p>Status: {analysisStatus.result.status}</p>
+            )}
+          </div>
+        )}
+
+        {uploadResponse && (
+          <div style={{ marginTop: "1rem" }}>
+            <p>
+              <strong>Upload Response:</strong>
+            </p>
+            <pre
+              style={{
+                fontSize: "12px",
+                background: "#f5f5f5",
+                padding: "10px",
+              }}
+            >
+              {JSON.stringify(uploadResponse, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {analysisResponse && (
+          <div style={{ marginTop: "1rem" }}>
+            <p>
+              <strong>Analysis Started:</strong>
+            </p>
+            <pre
+              style={{
+                fontSize: "12px",
+                background: "#f0f8ff",
+                padding: "10px",
+              }}
+            >
+              {JSON.stringify(analysisResponse, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {analysisStatus && (
+          <div style={{ marginTop: "1rem" }}>
+            <p>
+              <strong>Current Analysis Status:</strong>
+            </p>
+            <pre
+              style={{
+                fontSize: "12px",
+                background: "#f0fff0",
+                padding: "10px",
+              }}
+            >
+              {JSON.stringify(analysisStatus, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {finalResults && (
+          <div style={{ marginTop: "1rem" }}>
+            <p>
+              <strong>Final Analysis Results:</strong>
+            </p>
+            <pre
+              style={{
+                fontSize: "12px",
+                background: "#fff0f0",
+                padding: "10px",
+              }}
+            >
+              {JSON.stringify(finalResults, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {tags?.length > 0 && (
+          <div
             style={{
-              padding: "10px 20px",
-              backgroundColor: analyzing ? "#6c757d" : "#007bff",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              cursor: analyzing ? "not-allowed" : "pointer",
-              fontSize: "16px",
+              marginTop: "2rem",
+              borderTop: "1px solid #ddd",
+              paddingTop: "1rem",
             }}
           >
-            {analyzing ? "Analyzing..." : "Run Skin Analysis Now"}
-          </button>
-        </div>
-      )}
+            <p>
+              <strong>Available Product Tags:</strong>
+            </p>
+            <ul
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.5rem",
+                listStyle: "none",
+                padding: 0,
+              }}
+            >
+              {tags.map((tag) => (
+                <li
+                  key={tag.id}
+                  style={{
+                    background: "#e0f7fa",
+                    padding: "6px 12px",
+                    borderRadius: "5px",
+                  }}
+                >
+                  {tag.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-      {analyzing && (
-        <div>
-          <p>Analyzing skin... This may take a few moments.</p>
-          {analysisStatus && analysisStatus.result && (
-            <p>Status: {analysisStatus.result.status}</p>
-          )}
-        </div>
-      )}
-
-      {uploadResponse && (
-        <div style={{ marginTop: "1rem" }}>
-          <p>
-            <strong>Upload Response:</strong>
-          </p>
-          <pre
-            style={{ fontSize: "12px", background: "#f5f5f5", padding: "10px" }}
-          >
-            {JSON.stringify(uploadResponse, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {analysisResponse && (
-        <div style={{ marginTop: "1rem" }}>
-          <p>
-            <strong>Analysis Started:</strong>
-          </p>
-          <pre
-            style={{ fontSize: "12px", background: "#f0f8ff", padding: "10px" }}
-          >
-            {JSON.stringify(analysisResponse, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {analysisStatus && (
-        <div style={{ marginTop: "1rem" }}>
-          <p>
-            <strong>Current Analysis Status:</strong>
-          </p>
-          <pre
-            style={{ fontSize: "12px", background: "#f0fff0", padding: "10px" }}
-          >
-            {JSON.stringify(analysisStatus, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {finalResults && (
-        <div style={{ marginTop: "1rem" }}>
-          <p>
-            <strong>Final Analysis Results:</strong>
-          </p>
-          <pre
-            style={{ fontSize: "12px", background: "#fff0f0", padding: "10px" }}
-          >
-            {JSON.stringify(finalResults, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {tags?.length > 0 && (
-        <div
-          style={{
-            marginTop: "2rem",
-            borderTop: "1px solid #ddd",
-            paddingTop: "1rem",
-          }}
-        >
-          <p>
-            <strong>Available Product Tags:</strong>
-          </p>
-          <ul
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "0.5rem",
-              listStyle: "none",
-              padding: 0,
-            }}
-          >
-            {tags.map((tag) => (
-              <li
-                key={tag.id}
-                style={{
-                  background: "#e0f7fa",
-                  padding: "6px 12px",
-                  borderRadius: "5px",
-                }}
-              >
-                {tag.name}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+</div>
+      </main>
+      <Footer />
+    </>
   );
 }
