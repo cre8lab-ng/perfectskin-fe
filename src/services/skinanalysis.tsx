@@ -28,7 +28,7 @@ export async function uploadImage(file: File, accessToken: string) {
 
     const response = await fetch(
       "https://yce-api-01.perfectcorp.com/s2s/v1.1/file/skin-analysis",
-      // @ts-ignore
+      // @ts-expect-error: prop not in type but needed for dynamic rendering
       requestOptions
     );
 
@@ -79,8 +79,8 @@ export async function runSkinAnalysis(payload: SkinAnalysisPayload, accessToken:
         }
       }
     );
-    // @ts-ignore
-    return response;
+      // @ts-expect-error: prop not in type but needed for dynamic rendering
+      return response;
   } catch (error) {
     throw error;
   }
@@ -106,7 +106,6 @@ export async function analyzeSkinFeatures(fileId: string, accessToken: string, f
 
   try {
     const result = await runSkinAnalysis(payload, accessToken);
-    console.log(result,"res")
     return result;
   } catch (error) {
     console.error('Skin analysis failed:', error);

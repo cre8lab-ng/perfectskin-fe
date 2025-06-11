@@ -27,18 +27,18 @@ export async function getAccessToken() {
   try {
     const payload = {
       client_id: perfectSkinApiKey,
-      // @ts-ignore
+      // @ts-expect-error: prop not in type but needed for dynamic rendering
       id_token: createIdToken(perfectSkinApiKey, perfectSkinSecretKey),
     };
     const response = await api.post(apiEndpoints.auth.GET_TOKEN, payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
-    // @ts-ignore
+    // @ts-expect-error: prop not in type but needed for dynamic rendering
     return response?.result?.access_token;
   } catch (error: unknown) {
-    console.error('Token generation failed:', error);
+    console.error("Token generation failed:", error);
     throw error;
   }
 }

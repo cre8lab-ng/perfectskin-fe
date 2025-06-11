@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import Cookies from "js-cookie";
 import api from "@/util/api";
-import { uploadImage } from "@/services/skinAnalysis"; 
 
 const initialState = {
   uploadLoading: false,
@@ -27,7 +26,7 @@ const useSkinAnalysis = create(
           uploadMethod: method,
         })),
 
-      uploadSkinImage: async (file: File) => {
+      uploadSkinImage: async (file) => {
         try {
           set((state) => ({ ...state, uploadLoading: true, uploadError: null }));
 
@@ -64,7 +63,7 @@ const useSkinAnalysis = create(
           }
 
           return result;
-        } catch (error: any) {
+        } catch (error) {
           set((state) => ({ ...state, uploadLoading: false, uploadError: error?.message || "Upload failed" }));
           throw error;
         }

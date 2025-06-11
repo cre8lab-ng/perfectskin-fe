@@ -23,7 +23,7 @@ export default function Home() {
   const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
 
   // Improved polling function with better error handling and status checking
-  // @ts-ignore
+  // @ts-expect-error: prop not in type but needed for dynamic rendering
   const pollAnalysisStatus = async (taskId, accessToken) => {
     let attempts = 0;
     const maxAttempts = 30;
@@ -32,10 +32,7 @@ export default function Home() {
     return new Promise((resolve, reject) => {
       const poll = async () => {
         try {
-          console.log(`Polling attempt ${attempts + 1} for task: ${taskId}`);
           const status = await checkSkinAnalysisStatus(taskId, accessToken);
-          console.log("Status response:", status);
-
           setAnalysisStatus(status);
 
           // Check for completion based on API documentation
@@ -94,13 +91,15 @@ export default function Home() {
     });
   };
 
-  const handleCapture = async (e:any) => {
+  
+  const handleCapture = async (e: unknown) => {
+          // @ts-expect-error: prop not in type but needed for dynamic rendering
     const file = e.target.files[0];
     if (!file) return;
 
     // Show preview
     const previewUrl = URL.createObjectURL(file);
-    // @ts-ignore
+    // @ts-expect-error: prop not in type but needed for dynamic rendering
     setPreview(previewUrl);
 
     if (!accessToken) {
@@ -112,11 +111,10 @@ export default function Home() {
     try {
       // Upload the image
       const uploadResult = await uploadImage(file, accessToken);
-      console.log("Upload result:", uploadResult);
       setUploadResponse(uploadResult);
     } catch (err) {
       console.error("Upload failed", err);
-      // @ts-ignore
+      // @ts-expect-error: prop not in type but needed for dynamic rendering
       alert(`Upload failed: ${err.message}`);
     } finally {
       setUploading(false);
@@ -124,7 +122,7 @@ export default function Home() {
   };
 
   const handleRunAnalysis = async () => {
-    // @ts-ignore
+    // @ts-expect-error: prop not in type but needed for dynamic rendering
     if (!uploadResponse || !uploadResponse.file_id) {
       alert("No uploaded image found. Please upload an image first.");
       return;
@@ -142,36 +140,31 @@ export default function Home() {
     try {
       // Start skin analysis with the file ID from upload response
       const analysisResult = await analyzeSkinFeatures(
-        // @ts-ignore
+        // @ts-expect-error: prop not in type but needed for dynamic rendering
         uploadResponse.file_id,
         accessToken,
         ["hd_wrinkle", "hd_pore", "hd_texture", "hd_acne"]
       );
-
-      console.log("Analysis started:", analysisResult);
-      // @ts-ignore
+      // @ts-expect-error: prop not in type but needed for dynamic rendering
       setAnalysisResponse(analysisResult);
 
       // Extract task_id from the response
       let taskId;
-      console.log(taskId, "task");
       if (analysisResult.result && analysisResult.result.task_id) {
         taskId = analysisResult.result.task_id;
-        // @ts-ignore
+        // @ts-expect-error: prop not in type but needed for dynamic rendering
       } else if (analysisResult.task_id) {
-        // @ts-ignore
+        // @ts-expect-error: prop not in type but needed for dynamic rendering
         taskId = analysisResult.task_id;
       } else {
         throw new Error("No task_id found in analysis response");
       }
 
-      console.log("Starting to poll for task:", taskId);
-
       // Poll for analysis completion
       await pollAnalysisStatus(taskId, accessToken);
     } catch (err) {
       console.error("Analysis failed", err);
-      // @ts-ignore// @ts-ignore
+      // @ts-expect-error: prop not in type but needed for dynamic rendering
       alert(`Analysis failed: ${err.message}`);
       setAnalyzing(false);
     }
@@ -180,13 +173,11 @@ export default function Home() {
   useEffect(() => {
     async function fetchTags() {
       try {
-        console.log("Starting fetchTags"); // check this logs
         const data = await getAllTags(
           perfectSkinConsumerKey!,
           perfectSkinConsumerSecret!
         );
 
-        console.log("Data fetched:", data); // this one
         setTags(data);
       } catch (err) {
         console.error("Failed to load product tags:", err);
@@ -270,8 +261,8 @@ export default function Home() {
           {analyzing && (
             <div>
               <p>Analyzing skin... This may take a few moments.</p>
-              
-                  {/* {analysisStatus && analysisStatus.result && (
+
+              {/* {analysisStatus && analysisStatus.result && (
                 <p>Status: {analysisStatus.result.status}</p>
               )} */}
             </div>

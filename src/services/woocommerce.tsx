@@ -1,8 +1,4 @@
-import env from "@/config/env";
 import api from "@/util/api";
-import { apiEndpoints } from "@/util/endpoints";
-import crypto from "crypto";
-
 
 // Get all WooCommerce product tags
 export async function getAllTags(consumerKey: string, consumerSecret: string) {
