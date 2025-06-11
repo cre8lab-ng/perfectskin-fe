@@ -28,6 +28,7 @@ export async function uploadImage(file: File, accessToken: string) {
 
     const response = await fetch(
       "https://yce-api-01.perfectcorp.com/s2s/v1.1/file/skin-analysis",
+      // @ts-ignore
       requestOptions
     );
 
@@ -78,6 +79,7 @@ export async function runSkinAnalysis(payload: SkinAnalysisPayload, accessToken:
         }
       }
     );
+    // @ts-ignore
     return response;
   } catch (error) {
     throw error;

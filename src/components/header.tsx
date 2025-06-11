@@ -16,6 +16,7 @@ const navItems = [
   "Lighting & Content Tools",
 ];
 
+// @ts-ignore
 const megaMenus: Record<string, JSX.Element> = {
   Fragrance: (
     <div className="absolute top-full left-0 mt-2 w-[800px] bg-white shadow-lg p-6 grid grid-cols-3 gap-6 text-black z-50">

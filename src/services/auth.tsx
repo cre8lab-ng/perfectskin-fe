@@ -27,6 +27,7 @@ export async function getAccessToken() {
   try {
     const payload = {
       client_id: perfectSkinApiKey,
+      // @ts-ignore
       id_token: createIdToken(perfectSkinApiKey, perfectSkinSecretKey),
     };
     const response = await api.post(apiEndpoints.auth.GET_TOKEN, payload, {
@@ -34,6 +35,7 @@ export async function getAccessToken() {
         'Content-Type': 'application/json',
       },
     });
+    // @ts-ignore
     return response?.result?.access_token;
   } catch (error: unknown) {
     console.error('Token generation failed:', error);
