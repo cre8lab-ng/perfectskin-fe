@@ -1,23 +1,23 @@
-// components/Header.tsx
-'use client';
-
-import { useState } from 'react';
-// import { FaPhone, FaUser } from 'react-icons/fa';
-// import { FiSearch } from 'react-icons/fi';
-// import { HiOutlineHeart, HiOutlineShoppingBag } from 'react-icons/hi';
-// import { MdEmail } from 'react-icons/md';
+import { useState } from "react";
+import { PiPhoneLight } from "react-icons/pi";
+import { VscMail } from "react-icons/vsc";
+import Image from "next/image";
+import { MdOutlineKeyboardArrowDown } from "react-icons/md";
+import { FiSearch,FiHeart  } from "react-icons/fi";
+import { RiUserLine } from "react-icons/ri";
+import { IoBagHandleOutline } from "react-icons/io5";
 
 const navItems = [
-  'Skincare',
-  'Makeup',
-  'Fragrance',
-  'Haircare & Nails',
-  'Wellness & Supplements',
-  'Lighting & Content Tools',
+  "Skincare",
+  "Makeup",
+  "Fragrance",
+  "Haircare & Nails",
+  "Wellness & Supplements",
+  "Lighting & Content Tools",
 ];
 
 const megaMenus: Record<string, JSX.Element> = {
-  'Fragrance': (
+  Fragrance: (
     <div className="absolute top-full left-0 mt-2 w-[800px] bg-white shadow-lg p-6 grid grid-cols-3 gap-6 text-black z-50">
       <div>
         <h4 className="font-semibold mb-2">Shop By Product Use</h4>
@@ -64,7 +64,7 @@ const megaMenus: Record<string, JSX.Element> = {
       </div>
     </div>
   ),
-  'Skincare': (
+  Skincare: (
     <div className="absolute top-full left-0 mt-2 w-[600px] bg-white shadow-lg p-6 grid grid-cols-2 gap-6 text-black z-50">
       <div>
         <h4 className="font-semibold mb-2">By Skin Type</h4>
@@ -86,7 +86,6 @@ const megaMenus: Record<string, JSX.Element> = {
       </div>
     </div>
   ),
-  // Add others like Makeup, Haircare & Nails, etc.
 };
 
 export default function Header() {
@@ -94,57 +93,68 @@ export default function Header() {
 
   return (
     <div className="w-full relative z-50">
-      <div className="bg-pink-500 text-white text-sm flex justify-between px-4 py-2">
+      <div className="bg-darkpink text-white text-sm flex justify-between bh-container font-bold">
         <span>Enjoy a free gift with every order.</span>
+        <span>Delivery: Lagos 1-3 days | Outside 2-5 days</span>
+
         <div className="flex gap-6 items-center">
-          <span>Delivery: Lagos 1-3 days | Outside 2-5 days</span>
-          <div className="flex items-center gap-1">
-            {/* <FaPhone /> */}
-            <span>0816 259 8682</span>
-          </div>
-          <div className="flex items-center gap-1">
-            {/* <MdEmail /> */}
-            <span>support@beautyhub.ng</span>
-          </div>
+          <a href="tel:0816259862" className="flex items-center gap-2">
+            <PiPhoneLight size={20} />
+            0816 259 8682
+          </a>
+          <span>|</span>
+          <a
+            href="mailto:support@beautyhub.ng"
+            className="flex items-center gap-2"
+          >
+            <VscMail size={20} />
+            support@beautyhub.ng
+          </a>
         </div>
       </div>
 
-      <div className="bg-pink-100 flex justify-between items-center px-4 py-4 relative">
-        <div className="flex items-center text-pink-600 font-bold text-3xl">
-          <span className="text-5xl font-extrabold">B</span>
-          <div className="flex flex-col ml-1 leading-tight">
-            <span className="text-xl">eauty</span>
-            <span className="text-xl -mt-1">Hub</span>
-          </div>
+      <div className="bg-lightpink flex justify-between items-center bh-container">
+        <div>
+          <Image
+            src="/images/bh-logo.png"
+            alt="BH Logo"
+            width={100}
+            height={100}
+          />
         </div>
 
         <div className="hidden md:flex gap-6 text-pink-600 font-medium text-lg relative">
           {navItems.map((item) => (
             <div
               key={item}
-              className="relative group cursor-pointer"
+              className="flex cursor-pointer"
               onMouseEnter={() => setHoveredItem(item)}
               onMouseLeave={() => setHoveredItem(null)}
             >
-              <span>{item}</span>
-              <span className="ml-1">&#x25BE;</span>
+              <span className="text-base">{item}</span>
+              <span className="ml-[0.5] mt-1">
+                <MdOutlineKeyboardArrowDown />
+              </span>
               {hoveredItem === item && megaMenus[item]}
             </div>
           ))}
         </div>
 
-        <div className="flex items-center gap-4 text-pink-600 text-xl relative">
-          {/* <FiSearch className="cursor-pointer" />
-          <FaUser className="cursor-pointer" /> */}
+        <div className="flex items-center gap-4 text-darkpink text-xl relative">
+          <FiSearch className="cursor-pointer" />
+          <RiUserLine className="cursor-pointer"/>
+
           <div className="relative">
-            {/* <HiOutlineHeart className="cursor-pointer" /> */}
-            <span className="absolute -top-2 -right-2 text-xs bg-pink-500 text-white w-5 h-5 rounded-full flex items-center justify-center">
+          <FiHeart className="cursor-pointer"/>
+
+            <span className="absolute -top-2 -right-2 text-xs bg-darkpink text-white w-5 h-5 rounded-full flex items-center justify-center">
               0
             </span>
           </div>
           <div className="relative">
-            {/* <HiOutlineShoppingBag className="cursor-pointer" /> */}
-            <span className="absolute -top-2 -right-2 text-xs bg-pink-500 text-white w-5 h-5 rounded-full flex items-center justify-center">
+          <IoBagHandleOutline className="cursor-pointer"/>
+
+            <span className="absolute -top-2 -right-2 text-xs bg-darkpink text-white w-5 h-5 rounded-full flex items-center justify-center">
               1
             </span>
           </div>

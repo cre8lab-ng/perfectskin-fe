@@ -200,179 +200,177 @@ export default function Home() {
           minHeight: "100vh",
         }}
       >
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            maxWidth: "600px",
+            margin: "2rem auto",
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <p>
+            <strong>Take a picture and upload it for skin analysis</strong>
+          </p>
 
-<div
-  style={{
-    backgroundColor: "white",
-    padding: "2rem",
-    maxWidth: "600px",
-    margin: "2rem auto",
-    borderRadius: "12px",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-  }}
->
-        <p>
-          <strong>Take a picture and upload it for skin analysis</strong>
-        </p>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleCapture}
+            style={{ margin: "1em 0" }}
+            disabled={uploading}
+          />
 
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleCapture}
-          style={{ margin: "1em 0" }}
-          disabled={uploading}
-        />
+          {preview && (
+            <div>
+              <p>
+                <strong>Preview:</strong>
+              </p>
+              <img
+                src={preview}
+                alt="Preview"
+                style={{ maxWidth: "100%", height: "10rem", borderRadius: 8 }}
+              />
+            </div>
+          )}
 
-        {preview && (
-          <div>
-            <p>
-              <strong>Preview:</strong>
-            </p>
-            <img
-              src={preview}
-              alt="Preview"
-              style={{ maxWidth: "100%", height: "10rem", borderRadius: 8 }}
-            />
-          </div>
-        )}
+          {uploading && <p>Uploading image...</p>}
 
-        {uploading && <p>Uploading image...</p>}
+          {uploadResponse && (
+            <div style={{ margin: "1rem 0" }}>
+              <button
+                onClick={handleRunAnalysis}
+                disabled={analyzing}
+                style={{
+                  padding: "10px 20px",
+                  backgroundColor: analyzing ? "#6c757d" : "#007bff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "5px",
+                  cursor: analyzing ? "not-allowed" : "pointer",
+                  fontSize: "16px",
+                }}
+              >
+                {analyzing ? "Analyzing..." : "Run Skin Analysis Now"}
+              </button>
+            </div>
+          )}
 
-        {uploadResponse && (
-          <div style={{ margin: "1rem 0" }}>
-            <button
-              onClick={handleRunAnalysis}
-              disabled={analyzing}
+          {analyzing && (
+            <div>
+              <p>Analyzing skin... This may take a few moments.</p>
+              {analysisStatus && analysisStatus.result && (
+                <p>Status: {analysisStatus.result.status}</p>
+              )}
+            </div>
+          )}
+
+          {uploadResponse && (
+            <div style={{ marginTop: "1rem" }}>
+              <p>
+                <strong>Upload Response:</strong>
+              </p>
+              <pre
+                style={{
+                  fontSize: "12px",
+                  background: "#f5f5f5",
+                  padding: "10px",
+                }}
+              >
+                {JSON.stringify(uploadResponse, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {analysisResponse && (
+            <div style={{ marginTop: "1rem" }}>
+              <p>
+                <strong>Analysis Started:</strong>
+              </p>
+              <pre
+                style={{
+                  fontSize: "12px",
+                  background: "#f0f8ff",
+                  padding: "10px",
+                }}
+              >
+                {JSON.stringify(analysisResponse, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {analysisStatus && (
+            <div style={{ marginTop: "1rem" }}>
+              <p>
+                <strong>Current Analysis Status:</strong>
+              </p>
+              <pre
+                style={{
+                  fontSize: "12px",
+                  background: "#f0fff0",
+                  padding: "10px",
+                }}
+              >
+                {JSON.stringify(analysisStatus, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {finalResults && (
+            <div style={{ marginTop: "1rem" }}>
+              <p>
+                <strong>Final Analysis Results:</strong>
+              </p>
+              <pre
+                style={{
+                  fontSize: "12px",
+                  background: "#fff0f0",
+                  padding: "10px",
+                }}
+              >
+                {JSON.stringify(finalResults, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {tags?.length > 0 && (
+            <div
               style={{
-                padding: "10px 20px",
-                backgroundColor: analyzing ? "#6c757d" : "#007bff",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                cursor: analyzing ? "not-allowed" : "pointer",
-                fontSize: "16px",
+                marginTop: "2rem",
+                borderTop: "1px solid #ddd",
+                paddingTop: "1rem",
               }}
             >
-              {analyzing ? "Analyzing..." : "Run Skin Analysis Now"}
-            </button>
-          </div>
-        )}
-
-        {analyzing && (
-          <div>
-            <p>Analyzing skin... This may take a few moments.</p>
-            {analysisStatus && analysisStatus.result && (
-              <p>Status: {analysisStatus.result.status}</p>
-            )}
-          </div>
-        )}
-
-        {uploadResponse && (
-          <div style={{ marginTop: "1rem" }}>
-            <p>
-              <strong>Upload Response:</strong>
-            </p>
-            <pre
-              style={{
-                fontSize: "12px",
-                background: "#f5f5f5",
-                padding: "10px",
-              }}
-            >
-              {JSON.stringify(uploadResponse, null, 2)}
-            </pre>
-          </div>
-        )}
-
-        {analysisResponse && (
-          <div style={{ marginTop: "1rem" }}>
-            <p>
-              <strong>Analysis Started:</strong>
-            </p>
-            <pre
-              style={{
-                fontSize: "12px",
-                background: "#f0f8ff",
-                padding: "10px",
-              }}
-            >
-              {JSON.stringify(analysisResponse, null, 2)}
-            </pre>
-          </div>
-        )}
-
-        {analysisStatus && (
-          <div style={{ marginTop: "1rem" }}>
-            <p>
-              <strong>Current Analysis Status:</strong>
-            </p>
-            <pre
-              style={{
-                fontSize: "12px",
-                background: "#f0fff0",
-                padding: "10px",
-              }}
-            >
-              {JSON.stringify(analysisStatus, null, 2)}
-            </pre>
-          </div>
-        )}
-
-        {finalResults && (
-          <div style={{ marginTop: "1rem" }}>
-            <p>
-              <strong>Final Analysis Results:</strong>
-            </p>
-            <pre
-              style={{
-                fontSize: "12px",
-                background: "#fff0f0",
-                padding: "10px",
-              }}
-            >
-              {JSON.stringify(finalResults, null, 2)}
-            </pre>
-          </div>
-        )}
-
-        {tags?.length > 0 && (
-          <div
-            style={{
-              marginTop: "2rem",
-              borderTop: "1px solid #ddd",
-              paddingTop: "1rem",
-            }}
-          >
-            <p>
-              <strong>Available Product Tags:</strong>
-            </p>
-            <ul
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "0.5rem",
-                listStyle: "none",
-                padding: 0,
-              }}
-            >
-              {tags.map((tag) => (
-                <li
-                  key={tag.id}
-                  style={{
-                    background: "#e0f7fa",
-                    padding: "6px 12px",
-                    borderRadius: "5px",
-                  }}
-                >
-                  {tag.name}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-</div>
+              <p>
+                <strong>Available Product Tags:</strong>
+              </p>
+              <ul
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
+                  listStyle: "none",
+                  padding: 0,
+                }}
+              >
+                {tags.map((tag) => (
+                  <li
+                    key={tag.id}
+                    style={{
+                      background: "#e0f7fa",
+                      padding: "6px 12px",
+                      borderRadius: "5px",
+                    }}
+                  >
+                    {tag.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </main>
       <Footer />
     </>
