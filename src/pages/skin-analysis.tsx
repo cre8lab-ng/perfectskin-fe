@@ -5,10 +5,11 @@ import {
   analyzeSkinFeatures,
   checkSkinAnalysisStatus,
 } from "@/services/skinanalysis";
-import { getAllTags } from "@/services/woocommerce";
+import { getProductsByTagName } from "@/services/woocommerce";
 import env from "@/config/env";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
+import ProductRecommender from "@/components/product-recommender";
 
 export default function Home() {
   const accessToken = useAccessToken((s) => s.accessToken);
@@ -19,7 +20,7 @@ export default function Home() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState(null);
   const [finalResults, setFinalResults] = useState(null);
-  const [tags, setTags] = useState([]);
+  const [products, setProducts] = useState([]);
   const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
 
   // Improved polling function with better error handling and status checking
@@ -91,9 +92,8 @@ export default function Home() {
     });
   };
 
-  
   const handleCapture = async (e: unknown) => {
-          // @ts-expect-error: prop not in type but needed for dynamic rendering
+    // @ts-expect-error: prop not in type but needed for dynamic rendering
     const file = e.target.files[0];
     if (!file) return;
 
@@ -143,7 +143,7 @@ export default function Home() {
         // @ts-expect-error: prop not in type but needed for dynamic rendering
         uploadResponse.file_id,
         accessToken,
-        ["hd_wrinkle", "hd_pore", "hd_texture", "hd_acne"]
+        ["wrinkle", "pore", "texture", "acne"]
       );
       // @ts-expect-error: prop not in type but needed for dynamic rendering
       setAnalysisResponse(analysisResult);
@@ -161,7 +161,18 @@ export default function Home() {
       }
 
       // Poll for analysis completion
+      // Poll for analysis completion
       await pollAnalysisStatus(taskId, accessToken);
+
+      // After successful analysis, fetch relevant products
+      const resultTags = ["acne"]; // Example, you can derive this from `finalResults` later
+      const productResults = await getProductsByTagName(
+        resultTags[0], // or loop if multiple
+        perfectSkinConsumerKey!,
+        perfectSkinConsumerSecret!
+      );
+
+      setProducts(productResults);
     } catch (err) {
       console.error("Analysis failed", err);
       // @ts-expect-error: prop not in type but needed for dynamic rendering
@@ -171,20 +182,20 @@ export default function Home() {
   };
 
   useEffect(() => {
-    async function fetchTags() {
+    async function fetchTestProducts() {
       try {
-        const data = await getAllTags(
+        const productResults = await getProductsByTagName(
+          "acne",
           perfectSkinConsumerKey!,
           perfectSkinConsumerSecret!
         );
-
-        setTags(data);
+        
       } catch (err) {
-        console.error("Failed to load product tags:", err);
+        console.error("Error fetching test products:", err);
       }
     }
 
-    fetchTags();
+    fetchTestProducts();
   }, []);
 
   return (
@@ -336,41 +347,10 @@ export default function Home() {
             </div>
           )}
 
-          {tags?.length > 0 && (
-            <div
-              style={{
-                marginTop: "2rem",
-                borderTop: "1px solid #ddd",
-                paddingTop: "1rem",
-              }}
-            >
-              <p>
-                <strong>Available Product Tags:</strong>
-              </p>
-              {/* <ul
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "0.5rem",
-                  listStyle: "none",
-                  padding: 0,
-                }}
-              >
-                {tags.map((tag) => (
-                  <li
-                    key={tag.id}
-                    style={{
-                      background: "#e0f7fa",
-                      padding: "6px 12px",
-                      borderRadius: "5px",
-                    }}
-                  >
-                    {tag.name}
-                  </li>
-                ))}
-              </ul> */}
-            </div>
-          )}
+         
+
+<ProductRecommender />
+
         </div>
       </main>
       <Footer />

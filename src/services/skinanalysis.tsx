@@ -87,7 +87,7 @@ export async function runSkinAnalysis(payload: SkinAnalysisPayload, accessToken:
 }
 
 // Example usage function
-export async function analyzeSkinFeatures(fileId: string, accessToken: string, features: string[] = ["hd_wrinkle", "hd_pore", "hd_texture", "hd_acne"]) {
+export async function analyzeSkinFeatures(fileId: string, accessToken: string, features: string[] = ["wrinkle", "pore", "texture", "acne"]) {
   const payload: SkinAnalysisPayload = {
     request_id: 0,
     payload: {
