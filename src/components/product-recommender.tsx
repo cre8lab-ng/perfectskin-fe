@@ -1,47 +1,50 @@
-import { useEffect, useState } from "react";
-import { getProductsByTagName } from "@/services/woocommerce";
-import env from "@/config/env";
+import { useState } from "react";
+// import { getProductsByTagName } from "@/services/woocommerce";
+// import env from "@/config/env";
+import Image from "next/image";
 
 export default function ProductRecommender() {
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [productGroups, setProductGroups] = useState<{ [tag: string]: any[] }>(
     {}
   );
+  console.log(setLoading, setProductGroups);
+  // const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
+  // const tagsToLoad = ["acne", "aha", "amella"];
 
-  const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
-  const tagsToLoad = ["acne", "aha", "amella"]; // ✅ lowercase slugs
+  // useEffect(() => {
+  //   async function fetchAllProducts() {
+  //     try {
+  //       const fetches = tagsToLoad.map(async (tag) => {
+  //         const products = await getProductsByTagName(
+  //           tag,
+  //           perfectSkinConsumerKey!,
+  //           perfectSkinConsumerSecret!
+  //         );
+  //         return { tag, products };
+  //       });
 
-  useEffect(() => {
-    async function fetchAllProducts() {
-      try {
-        const fetches = tagsToLoad.map(async (tag) => {
-          const products = await getProductsByTagName(
-            tag,
-            perfectSkinConsumerKey!,
-            perfectSkinConsumerSecret!
-          );
-          return { tag, products };
-        });
+  //       const results = await Promise.all(fetches);
 
-        const results = await Promise.all(fetches);
+  //       const grouped = results.reduce((acc, { tag, products }) => {
+  //         if (products.length > 0) {
+  //           acc[tag] = products;
+  //         }
+  //         return acc;
+  //         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  //       }, {} as { [tag: string]: any[] });
 
-        const grouped = results.reduce((acc, { tag, products }) => {
-          if (products.length > 0) {
-            acc[tag] = products;
-          }
-          return acc;
-        }, {} as { [tag: string]: any[] });
+  //       setProductGroups(grouped);
+  //     } catch (err) {
+  //       console.error("❌ Failed to fetch product groups:", err);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   }
 
-        setProductGroups(grouped);
-      } catch (err) {
-        console.error("❌ Failed to fetch product groups:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchAllProducts();
-  }, []);
+  //   fetchAllProducts();
+  // }, []);
 
   if (loading) return <p>Loading products...</p>;
 
@@ -70,7 +73,7 @@ export default function ProductRecommender() {
 
                 {product.image && (
                   <div>
-                    <img
+                    <Image
                       src={product.image}
                       alt={product.name}
                       style={{ width: "100px", borderRadius: "5px" }}

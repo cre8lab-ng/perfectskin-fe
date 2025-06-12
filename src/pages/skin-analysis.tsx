@@ -9,7 +9,7 @@ import { getProductsByTagName } from "@/services/woocommerce";
 import env from "@/config/env";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
-import ProductRecommender from "@/components/product-recommender";
+import Image from "next/image";
 
 export default function Home() {
   const accessToken = useAccessToken((s) => s.accessToken);
@@ -22,6 +22,8 @@ export default function Home() {
   const [finalResults, setFinalResults] = useState(null);
   const [products, setProducts] = useState([]);
   const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
+
+  console.log(products,setProducts);
 
   // Improved polling function with better error handling and status checking
   // @ts-expect-error: prop not in type but needed for dynamic rendering
@@ -171,8 +173,9 @@ export default function Home() {
         perfectSkinConsumerKey!,
         perfectSkinConsumerSecret!
       );
+      console.log(productResults,"kj")
 
-      setProducts(productResults);
+      // setProducts(productResults);
     } catch (err) {
       console.error("Analysis failed", err);
       // @ts-expect-error: prop not in type but needed for dynamic rendering
@@ -189,14 +192,14 @@ export default function Home() {
           perfectSkinConsumerKey!,
           perfectSkinConsumerSecret!
         );
-        
+        console.log(productResults);
       } catch (err) {
         console.error("Error fetching test products:", err);
       }
     }
 
     fetchTestProducts();
-  }, []);
+  }, [perfectSkinConsumerKey, perfectSkinConsumerSecret]);
 
   return (
     <>
@@ -239,7 +242,7 @@ export default function Home() {
               <p>
                 <strong>Preview:</strong>
               </p>
-              <img
+              <Image
                 src={preview}
                 alt="Preview"
                 style={{ maxWidth: "100%", height: "10rem", borderRadius: 8 }}
@@ -347,10 +350,7 @@ export default function Home() {
             </div>
           )}
 
-         
-
-<ProductRecommender />
-
+          {/* <ProductRecommender /> */}
         </div>
       </main>
       <Footer />

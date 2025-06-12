@@ -34,7 +34,7 @@ export default function Home() {
           {/* QR Code */}
           <div className="flex flex-col items-center mt-2">
             <div className="bg-white rounded-full p-2 shadow-sm">
-              <img
+              <Image
                 src="/images/qr-perfectskin-pink-transparent.png"
                 alt="QR Code"
                 width={80}
