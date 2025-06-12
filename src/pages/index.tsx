@@ -1,378 +1,208 @@
-import { useEffect, useState } from "react";
-import useAccessToken from "@/stores/useAccessToken";
-import { uploadImage } from "@/services/skinanalysis";
-import {
-  analyzeSkinFeatures,
-  checkSkinAnalysisStatus,
-} from "@/services/skinanalysis";
-import { getAllTags } from "@/services/woocommerce";
-import env from "@/config/env";
-import Header from "@/components/header";
 import Footer from "@/components/footer";
+import Header from "@/components/header";
+import WebPageTitle from "@/components/webpagetitle";
+import Image from "next/image";
 
 export default function Home() {
-  const accessToken = useAccessToken((s) => s.accessToken);
-  const [preview, setPreview] = useState(null);
-  const [uploadResponse, setUploadResponse] = useState(null);
-  const [analysisResponse, setAnalysisResponse] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysisStatus, setAnalysisStatus] = useState(null);
-  const [finalResults, setFinalResults] = useState(null);
-  const [tags, setTags] = useState([]);
-  const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
-
-  // Improved polling function with better error handling and status checking
-  // @ts-expect-error: prop not in type but needed for dynamic rendering
-  const pollAnalysisStatus = async (taskId, accessToken) => {
-    let attempts = 0;
-    const maxAttempts = 30;
-    const pollInterval = 2000;
-
-    return new Promise((resolve, reject) => {
-      const poll = async () => {
-        try {
-          const status = await checkSkinAnalysisStatus(taskId, accessToken);
-          setAnalysisStatus(status);
-
-          // Check for completion based on API documentation
-          if (status.result && status.result.status === "success") {
-            // Analysis completed successfully
-            setAnalyzing(false);
-            setFinalResults(status.result.results);
-            resolve(status);
-            return;
-          } else if (status.result && status.result.status === "error") {
-            // Analysis failed
-            setAnalyzing(false);
-            reject(
-              new Error(
-                `Analysis failed: ${
-                  status.result.error_message || "Unknown error"
-                }`
-              )
-            );
-            return;
-          } else if (status.result && status.result.status === "running") {
-            // Still processing, continue polling
-            attempts++;
-            if (attempts < maxAttempts) {
-              setTimeout(poll, pollInterval);
-            } else {
-              setAnalyzing(false);
-              reject(
-                new Error("Analysis timeout - maximum polling attempts reached")
-              );
-            }
-          } else {
-            // Unexpected status format
-            attempts++;
-            if (attempts < maxAttempts) {
-              setTimeout(poll, pollInterval);
-            } else {
-              setAnalyzing(false);
-              reject(new Error("Analysis timeout - unexpected status format"));
-            }
-          }
-        } catch (error) {
-          console.error("Polling error:", error);
-          attempts++;
-          if (attempts < maxAttempts) {
-            // Retry on error
-            setTimeout(poll, pollInterval);
-          } else {
-            setAnalyzing(false);
-            reject(error);
-          }
-        }
-      };
-
-      poll();
-    });
-  };
-
-  
-  const handleCapture = async (e: unknown) => {
-          // @ts-expect-error: prop not in type but needed for dynamic rendering
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Show preview
-    const previewUrl = URL.createObjectURL(file);
-    // @ts-expect-error: prop not in type but needed for dynamic rendering
-    setPreview(previewUrl);
-
-    if (!accessToken) {
-      alert("Access token not available yet.");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      // Upload the image
-      const uploadResult = await uploadImage(file, accessToken);
-      setUploadResponse(uploadResult);
-    } catch (err) {
-      console.error("Upload failed", err);
-      // @ts-expect-error: prop not in type but needed for dynamic rendering
-      alert(`Upload failed: ${err.message}`);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleRunAnalysis = async () => {
-    // @ts-expect-error: prop not in type but needed for dynamic rendering
-    if (!uploadResponse || !uploadResponse.file_id) {
-      alert("No uploaded image found. Please upload an image first.");
-      return;
-    }
-
-    if (!accessToken) {
-      alert("Access token not available.");
-      return;
-    }
-
-    setAnalyzing(true);
-    setAnalysisStatus(null);
-    setFinalResults(null);
-
-    try {
-      // Start skin analysis with the file ID from upload response
-      const analysisResult = await analyzeSkinFeatures(
-        // @ts-expect-error: prop not in type but needed for dynamic rendering
-        uploadResponse.file_id,
-        accessToken,
-        ["hd_wrinkle", "hd_pore", "hd_texture", "hd_acne"]
-      );
-      // @ts-expect-error: prop not in type but needed for dynamic rendering
-      setAnalysisResponse(analysisResult);
-
-      // Extract task_id from the response
-      let taskId;
-      if (analysisResult.result && analysisResult.result.task_id) {
-        taskId = analysisResult.result.task_id;
-        // @ts-expect-error: prop not in type but needed for dynamic rendering
-      } else if (analysisResult.task_id) {
-        // @ts-expect-error: prop not in type but needed for dynamic rendering
-        taskId = analysisResult.task_id;
-      } else {
-        throw new Error("No task_id found in analysis response");
-      }
-
-      // Poll for analysis completion
-      await pollAnalysisStatus(taskId, accessToken);
-    } catch (err) {
-      console.error("Analysis failed", err);
-      // @ts-expect-error: prop not in type but needed for dynamic rendering
-      alert(`Analysis failed: ${err.message}`);
-      setAnalyzing(false);
-    }
-  };
-
-  useEffect(() => {
-    async function fetchTags() {
-      try {
-        const data = await getAllTags(
-          perfectSkinConsumerKey!,
-          perfectSkinConsumerSecret!
-        );
-
-        setTags(data);
-      } catch (err) {
-        console.error("Failed to load product tags:", err);
-      }
-    }
-
-    fetchTags();
-  }, []);
-
   return (
     <>
+      <WebPageTitle title="Perfect Skin By BeautyHub" />
       <Header />
-      <main
-        style={{
-          padding: "1rem",
-          backgroundImage: "url('/images/skinperfect.svg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          minHeight: "100vh",
-        }}
+      <div
+        className="relative bg-cover bg-center bg-no-repeat min-h-[70vh] flex items-center justify-center px-6"
+        style={{ backgroundImage: "url('/images/perfectskin.jpg')" }}
       >
-        <div
-          style={{
-            backgroundColor: "white",
-            padding: "2rem",
-            maxWidth: "600px",
-            margin: "2rem auto",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          <p>
-            <strong>Take a picture and upload it for skin analysis</strong>
+        {/* Softer white overlay with slight blur */}
+        <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px]"></div>
+
+        {/* Content Card */}
+        <div className="relative z-10 max-w-2xl w-full bg-white/80 rounded-3xl shadow-lg p-6 md:p-8 text-center space-y-5">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-[#f847b4] leading-tight">
+            Perfect Skin by Beauty Hub
+          </h1>
+
+          <h2 className="text-base md:text-lg font-medium text-gray-800">
+            Fast, AI-Powered Skin Analysis
+          </h2>
+
+          <p className="text-gray-700 text-sm md:text-base">
+            Upload or snap a photo to discover your skin condition and get a
+            personalized skincare routine—powered by AI trained on 50,000+ skin
+            images.
           </p>
 
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleCapture}
-            style={{ margin: "1em 0" }}
-            disabled={uploading}
-          />
-
-          {preview && (
-            <div>
-              <p>
-                <strong>Preview:</strong>
-              </p>
+          {/* QR Code */}
+          <div className="flex flex-col items-center mt-2">
+            <div className="bg-white rounded-full p-2 shadow-sm">
               <img
-                src={preview}
-                alt="Preview"
-                style={{ maxWidth: "100%", height: "10rem", borderRadius: 8 }}
+                src="/images/qr-perfectskin-pink-transparent.png"
+                alt="QR Code"
+                width={80}
+                height={80}
+                className="rounded-md"
+                style={{ backgroundColor: "transparent" }}
               />
             </div>
-          )}
-
-          {uploading && <p>Uploading image...</p>}
-
-          {uploadResponse && (
-            <div style={{ margin: "1rem 0" }}>
-              <button
-                onClick={handleRunAnalysis}
-                disabled={analyzing}
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: analyzing ? "#6c757d" : "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "5px",
-                  cursor: analyzing ? "not-allowed" : "pointer",
-                  fontSize: "16px",
-                }}
-              >
-                {analyzing ? "Analyzing..." : "Run Skin Analysis Now"}
-              </button>
-            </div>
-          )}
-
-          {analyzing && (
-            <div>
-              <p>Analyzing skin... This may take a few moments.</p>
-
-              {/* {analysisStatus && analysisStatus.result && (
-                <p>Status: {analysisStatus.result.status}</p>
-              )} */}
-            </div>
-          )}
-
-          {uploadResponse && (
-            <div style={{ marginTop: "1rem" }}>
-              <p>
-                <strong>Upload Response:</strong>
-              </p>
-              <pre
-                style={{
-                  fontSize: "12px",
-                  background: "#f5f5f5",
-                  padding: "10px",
-                }}
-              >
-                {JSON.stringify(uploadResponse, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {analysisResponse && (
-            <div style={{ marginTop: "1rem" }}>
-              <p>
-                <strong>Analysis Started:</strong>
-              </p>
-              <pre
-                style={{
-                  fontSize: "12px",
-                  background: "#f0f8ff",
-                  padding: "10px",
-                }}
-              >
-                {JSON.stringify(analysisResponse, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {analysisStatus && (
-            <div style={{ marginTop: "1rem" }}>
-              <p>
-                <strong>Current Analysis Status:</strong>
-              </p>
-              <pre
-                style={{
-                  fontSize: "12px",
-                  background: "#f0fff0",
-                  padding: "10px",
-                }}
-              >
-                {JSON.stringify(analysisStatus, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {finalResults && (
-            <div style={{ marginTop: "1rem" }}>
-              <p>
-                <strong>Final Analysis Results:</strong>
-              </p>
-              <pre
-                style={{
-                  fontSize: "12px",
-                  background: "#fff0f0",
-                  padding: "10px",
-                }}
-              >
-                {JSON.stringify(finalResults, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {tags?.length > 0 && (
-            <div
-              style={{
-                marginTop: "2rem",
-                borderTop: "1px solid #ddd",
-                paddingTop: "1rem",
-              }}
-            >
-              <p>
-                <strong>Available Product Tags:</strong>
-              </p>
-              {/* <ul
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "0.5rem",
-                  listStyle: "none",
-                  padding: 0,
-                }}
-              >
-                {tags.map((tag) => (
-                  <li
-                    key={tag.id}
-                    style={{
-                      background: "#e0f7fa",
-                      padding: "6px 12px",
-                      borderRadius: "5px",
-                    }}
-                  >
-                    {tag.name}
-                  </li>
-                ))}
-              </ul> */}
-            </div>
-          )}
+            <p className="mt-2 text-xs text-[#f847b4] font-semibold">
+              Scan to start your analysis
+            </p>
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* Steps */}
+      <section className="bg-white py-12 px-4 md:px-12 text-center">
+        <h2 className="text-2xl md:text-4xl font-bold mb-10">
+          YOUR PERSONAL SKIN ANALYSIS IN THREE EASY STEPS
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+          {/* Step 1 */}
+          <div className="flex flex-col items-center">
+            <div className="relative w-64 h-96">
+              <Image
+                src="/images/1.jpg"
+                alt="Step 1 - Upload Selfie"
+                layout="fill"
+                objectFit="contain"
+              />
+            </div>
+            <p className="mt-6 text-lg font-semibold">
+              UPLOAD OR TAKE A SELFIE
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              Snap or upload a clear photo—no filters needed. Our AI reads
+              natural skin features from front and side views.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <div className="relative w-64 h-96">
+              <Image
+                src="/images/2.jpg"
+                alt="Step 2 - Skin Analysis"
+                layout="fill"
+                objectFit="contain"
+              />
+            </div>
+            <p className="mt-6 text-lg font-semibold">COMPLETE YOUR ANALYSIS</p>
+            <p className="text-sm text-gray-600 mt-2">
+              In seconds, the AI scans your face for up to 15 skin concerns,
+              including texture, pores, acne, and dark spots.
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div className="flex flex-col items-center">
+            <div className="relative w-64 h-96">
+              <Image
+                src="/images/2.jpg"
+                alt="Step 3 - Discover Routine"
+                layout="fill"
+                objectFit="contain"
+              />
+            </div>
+            <p className="mt-6 text-lg font-semibold">DISCOVER YOUR ROUTINE</p>
+            <p className="text-sm text-gray-600 mt-2">
+              Receive a personalized skincare routine tailored to your skin’s
+              unique needs, backed by advanced AI insights.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="w-full bg-[#fff0f6] text-black py-16">
+        <div className="max-w-screen-xl mx-auto flex flex-col-reverse md:flex-row items-center justify-between px-6 md:px-12 gap-12">
+          {/* Left Section */}
+          <div className="w-full md:w-1/2 text-center md:text-left space-y-6">
+            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight">
+              Discover Your
+              <br />
+              <span className="text-[#f847b4]">Tailored Routine</span>
+              <br />& Skincare Tips
+            </h1>
+            <p className="text-lg md:text-xl text-gray-700 max-w-md mx-auto md:mx-0">
+              Scan to begin your personalized skin analysis powered by AI.
+            </p>
+          </div>
+
+          {/* Right Section */}
+          <div className="w-full md:w-1/2 relative flex flex-col items-center">
+            {/* Phone Image */}
+            <div className="relative">
+              <Image
+                src="/images/girls.png"
+                alt="Phone Over Face"
+                width={320}
+                height={320}
+                className="rounded-2xl shadow-xl"
+              />
+
+              {/* QR Code - Floating top-right on image */}
+              <div className="absolute -top-4 -right-4 bg-white p-2 rounded-xl shadow-md">
+                <Image
+                  src="/images/qr-perfectskin-pink-transparent.png"
+                  alt="QR Code"
+                  width={80}
+                  height={80}
+                  className="rounded-md"
+                  style={{ backgroundColor: "transparent" }}
+                />
+              </div>
+            </div>
+
+            {/* QR Instruction Below */}
+            <p className="mt-6 text-center text-sm text-[#f847b4] font-medium">
+              Scan the QR code on a mobile device <br />
+              to start your skin analysis
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Behind the tech */}
+      <section className="bg-white text-gray-800 py-12 px-6 md:px-12">
+        <div className="max-w-5xl mx-auto space-y-12">
+          {/* Title */}
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#f847b4]">
+              Behind the Tech
+            </h2>
+            <p className="text-base md:text-lg text-gray-600">
+              Advanced AI. Proven Accuracy. Personalized for You.
+            </p>
+          </div>
+
+          {/* Highlights Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm md:text-base text-gray-700">
+            <div className="p-4 bg-[#fef6fb] rounded-xl shadow-sm">
+              <h3 className="font-semibold text-[#f847b4] mb-1">
+                HD Skin Analysis
+              </h3>
+              <p>2× sharper AI for ultra-precise detection and diagnostics.</p>
+            </div>
+
+            <div className="p-4 bg-[#fef6fb] rounded-xl shadow-sm">
+              <h3 className="font-semibold text-[#f847b4] mb-1">
+                Targeted Zones
+              </h3>
+              <p>Focuses on T-zone, U-zone & more for personalized care.</p>
+            </div>
+
+            <div className="p-4 bg-[#fef6fb] rounded-xl shadow-sm">
+              <h3 className="font-semibold text-[#f847b4] mb-1">AI Insights</h3>
+              <p>50K+ skin images power 95%+ diagnostic accuracy.</p>
+            </div>
+
+            <div className="p-4 bg-[#fef6fb] rounded-xl shadow-sm">
+              <h3 className="font-semibold text-[#f847b4] mb-1">
+                Real-Time Results
+              </h3>
+              <p>Instant analysis, clinically validated by dermatologists.</p>
+            </div>
+          </div>
+        </div>
+      </section>
       <Footer />
     </>
   );
