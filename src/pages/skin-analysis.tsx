@@ -34,10 +34,16 @@ interface AnalysisStatus {
   };
 }
 
+export interface UploadResponse {
+  file_id: string;
+  url?: string; // optional if not always returned
+}
+
+
 export default function Home() {
   const accessToken = useAccessToken((s) => s.accessToken);
   const [preview, setPreview] = useState<string | null>(null);
-  const [uploadResponse, setUploadResponse] = useState<any>(null);
+  const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(null);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
@@ -55,6 +61,7 @@ export default function Home() {
     loadPaystackScript();
   }, []);
 
+  console.log(products,preview)
   const pollAnalysisStatus = async (taskId: string, accessToken: string): Promise<AnalysisStatus> => {
     console.log(taskId,accessToken)
     const fakeSuccessResult: AnalysisStatus = {
