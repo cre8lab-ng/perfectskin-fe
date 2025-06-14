@@ -10,7 +10,6 @@ export default function ProductRecommender() {
     {}
   );
   console.log(setLoading, setProductGroups);
-  // const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
   // const tagsToLoad = ["acne", "aha", "amella"];
 
   // useEffect(() => {
@@ -19,8 +18,8 @@ export default function ProductRecommender() {
   //       const fetches = tagsToLoad.map(async (tag) => {
   //         const products = await getProductsByTagName(
   //           tag,
-  //           perfectSkinConsumerKey!,
-  //           perfectSkinConsumerSecret!
+  //           process.env.WC_KEY!,
+  //           process.env.WC_SECRET!
   //         );
   //         return { tag, products };
   //       });

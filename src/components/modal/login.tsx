@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { hasUserCompletedOrder } from "@/services/woocommerce";
-import env from "@/config/env";
+import { hasUserCompletedOrder, createWooCompletedOrder } from "@/services/woocommerce";
+import { triggerPaystackPopup } from "@/util/paystack";
+import {  notifySuccess } from "@/util/utils";
+
 
 type Props = {
   onClose: () => void;
@@ -12,8 +14,6 @@ export default function LoginModal({ onClose, onLoginSuccess }: Props) {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
 
-  const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setChecking(true);
@@ -21,13 +21,30 @@ export default function LoginModal({ onClose, onLoginSuccess }: Props) {
 
     try {
       const hasAccess = await hasUserCompletedOrder(
-        email,
-        perfectSkinConsumerKey!,
-        perfectSkinConsumerSecret!
+        email
       );
 
-      // 👉 Always notify parent whether access is granted or not
-      onLoginSuccess(email, hasAccess);
+      if (hasAccess) {
+        onLoginSuccess(email, true);
+      } else {
+        triggerPaystackPopup({
+          email,
+          amount: 500000,
+          onSuccess: () => {
+            createWooCompletedOrder(email)
+              .then(() => {
+                notifySuccess("Payment successful! Access granted.");
+                onLoginSuccess(email, true);
+              })
+              .catch((err) => {
+                console.error("Order creation failed after payment", err);
+                alert("Payment succeeded but order creation failed.");
+                onLoginSuccess(email, false);
+              });
+          },
+          onClose: () => alert("Payment was cancelled."),
+        });
+      }
     } catch (err) {
       setError("Login failed. Please try again.");
       console.error("Login error:", err);

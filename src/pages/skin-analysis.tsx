@@ -2,13 +2,11 @@ import { useEffect, useState, ChangeEvent } from "react";
 import useAccessToken from "@/stores/useAccessToken";
 import { uploadImage, analyzeSkinFeatures } from "@/services/skinanalysis";
 import { getProductsByTagName, createWooCompletedOrder } from "@/services/woocommerce";
-import env from "@/config/env";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import ProductRecommender from "@/components/product-recommender";
 import LoginModal from "@/components/modal/login";
 import { loadPaystackScript, triggerPaystackPopup } from "@/util/paystack";
-
 
 interface Product {
   id: number;
@@ -36,9 +34,8 @@ interface AnalysisStatus {
 
 export interface UploadResponse {
   file_id: string;
-  url?: string; // optional if not always returned
+  url?: string;
 }
-
 
 export default function Home() {
   const accessToken = useAccessToken((s) => s.accessToken);
@@ -54,16 +51,16 @@ export default function Home() {
   const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [customerEmail, setCustomerEmail] = useState("");
-  console.log(customerEmail)
-  const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
+
+  console.log(preview,products,customerEmail)
 
   useEffect(() => {
     loadPaystackScript();
   }, []);
 
-  console.log(products,preview)
   const pollAnalysisStatus = async (taskId: string, accessToken: string): Promise<AnalysisStatus> => {
     console.log(taskId,accessToken)
+
     const fakeSuccessResult: AnalysisStatus = {
       result: {
         status: "success",
@@ -119,12 +116,12 @@ export default function Home() {
         amount: 500000,
         onSuccess: async () => {
           try {
-            await createWooCompletedOrder(email, perfectSkinConsumerKey!, perfectSkinConsumerSecret!);
+            await createWooCompletedOrder(email);
             setIsAuthorized(true);
             setFinalResults(pendingResults);
             setProducts(pendingProducts);
           } catch (err) {
-            console.log(err)
+            console.log(err);
             alert("Payment succeeded but order creation failed.");
           }
         },
@@ -190,9 +187,7 @@ export default function Home() {
     async function fetchTestProducts() {
       try {
         const productResults = await getProductsByTagName(
-          "acne",
-          perfectSkinConsumerKey!,
-          perfectSkinConsumerSecret!
+          "acne"
         );
         console.log(productResults);
       } catch (err) {
@@ -201,7 +196,7 @@ export default function Home() {
     }
 
     fetchTestProducts();
-  }, [perfectSkinConsumerKey, perfectSkinConsumerSecret]);
+  }, []);
 
   return (
     <>
@@ -226,9 +221,7 @@ export default function Home() {
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
           }}
         >
-          <p>
-            <strong>Take a picture and upload it for skin analysis</strong>
-          </p>
+          <p><strong>Take a picture and upload it for skin analysis</strong></p>
 
           <input
             type="file"
@@ -238,19 +231,6 @@ export default function Home() {
             style={{ margin: "1em 0" }}
             disabled={uploading}
           />
-
-          {/* {preview && (
-            <div>
-              <p>
-                <strong>Preview:</strong>
-              </p>
-              <img
-                src={preview}
-                alt="Preview"
-                style={{ maxWidth: "100%", height: "10rem", borderRadius: 8 }}
-              />
-            </div>
-          )} */}
 
           {uploading && <p>Uploading image...</p>}
 
@@ -277,9 +257,7 @@ export default function Home() {
           {analyzing && (
             <div>
               <p>Analyzing skin... This may take a few moments.</p>
-              {analysisStatus?.result && (
-                <p>Status: {analysisStatus.result.status}</p>
-              )}
+              {analysisStatus?.result && <p>Status: {analysisStatus.result.status}</p>}
             </div>
           )}
 
@@ -289,22 +267,6 @@ export default function Home() {
               <pre>{JSON.stringify(finalResults, null, 2)}</pre>
             </div>
           )}
-
-          {/* {isAuthorized && products.length > 0 && (
-            <div style={{ marginTop: "2rem" }}>
-              <h3>Recommended Products</h3>
-              {products.map((product) => (
-                <div key={product.id} style={{ marginBottom: "1rem" }}>
-                  <img src={product.image} alt={product.name} width={100} />
-                  <p>
-                    <strong>{product.name}</strong>
-                  </p>
-                  <p dangerouslySetInnerHTML={{ __html: product.price_html }} />
-                  <a href={product.link}>Shop Now</a>
-                </div>
-              ))}
-            </div>
-          )} */}
 
           <ProductRecommender />
 
