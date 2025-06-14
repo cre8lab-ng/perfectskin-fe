@@ -124,7 +124,7 @@ export async function checkSkinAnalysisStatus(taskId: string, accessToken: strin
         }
       }
     );
-    return response.data;
+    return response;
   } catch (error) {
     throw error;
   }

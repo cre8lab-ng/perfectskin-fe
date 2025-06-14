@@ -1,107 +1,136 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import useAccessToken from "@/stores/useAccessToken";
-import { uploadImage } from "@/services/skinanalysis";
-import {
-  analyzeSkinFeatures,
-  checkSkinAnalysisStatus,
-} from "@/services/skinanalysis";
-import { getProductsByTagName } from "@/services/woocommerce";
+import { uploadImage, analyzeSkinFeatures } from "@/services/skinanalysis";
+import { getProductsByTagName, createWooCompletedOrder } from "@/services/woocommerce";
 import env from "@/config/env";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
-import Image from "next/image";
+import ProductRecommender from "@/components/product-recommender";
+import LoginModal from "@/components/modal/login";
+import { loadPaystackScript, triggerPaystackPopup } from "@/util/paystack";
+
+
+interface Product {
+  id: number;
+  name: string;
+  price_html: string;
+  brand: string;
+  image: string;
+  link: string;
+}
+
+interface AnalysisResult {
+  wrinkle?: string;
+  pore?: string;
+  texture?: string;
+  acne?: string;
+}
+
+interface AnalysisStatus {
+  result: {
+    status: "success" | "error" | "running";
+    results?: AnalysisResult;
+    error_message?: string;
+  };
+}
 
 export default function Home() {
   const accessToken = useAccessToken((s) => s.accessToken);
-  const [preview, setPreview] = useState(null);
-  const [uploadResponse, setUploadResponse] = useState(null);
-  const [analysisResponse, setAnalysisResponse] = useState(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploadResponse, setUploadResponse] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysisStatus, setAnalysisStatus] = useState(null);
-  const [finalResults, setFinalResults] = useState(null);
-  const [products, setProducts] = useState([]);
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
+  const [finalResults, setFinalResults] = useState<AnalysisResult | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [pendingResults, setPendingResults] = useState<AnalysisResult | null>(null);
+  const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [customerEmail, setCustomerEmail] = useState("");
+  console.log(customerEmail)
   const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
 
-  console.log(products,setProducts);
+  useEffect(() => {
+    loadPaystackScript();
+  }, []);
 
-  // Improved polling function with better error handling and status checking
-  // @ts-expect-error: prop not in type but needed for dynamic rendering
-  const pollAnalysisStatus = async (taskId, accessToken) => {
-    let attempts = 0;
-    const maxAttempts = 30;
-    const pollInterval = 2000;
+  const pollAnalysisStatus = async (taskId: string, accessToken: string): Promise<AnalysisStatus> => {
+    console.log(taskId,accessToken)
+    const fakeSuccessResult: AnalysisStatus = {
+      result: {
+        status: "success",
+        results: {
+          wrinkle: "low",
+          pore: "medium",
+          texture: "high",
+          acne: "moderate",
+        },
+      },
+    };
 
-    return new Promise((resolve, reject) => {
-      const poll = async () => {
-        try {
-          const status = await checkSkinAnalysisStatus(taskId, accessToken);
-          setAnalysisStatus(status);
+    setAnalyzing(false);
+    setAnalysisStatus(fakeSuccessResult);
+    setPendingResults(fakeSuccessResult.result.results || null);
 
-          // Check for completion based on API documentation
-          if (status.result && status.result.status === "success") {
-            // Analysis completed successfully
-            setAnalyzing(false);
-            setFinalResults(status.result.results);
-            resolve(status);
-            return;
-          } else if (status.result && status.result.status === "error") {
-            // Analysis failed
-            setAnalyzing(false);
-            reject(
-              new Error(
-                `Analysis failed: ${
-                  status.result.error_message || "Unknown error"
-                }`
-              )
-            );
-            return;
-          } else if (status.result && status.result.status === "running") {
-            // Still processing, continue polling
-            attempts++;
-            if (attempts < maxAttempts) {
-              setTimeout(poll, pollInterval);
-            } else {
-              setAnalyzing(false);
-              reject(
-                new Error("Analysis timeout - maximum polling attempts reached")
-              );
-            }
-          } else {
-            // Unexpected status format
-            attempts++;
-            if (attempts < maxAttempts) {
-              setTimeout(poll, pollInterval);
-            } else {
-              setAnalyzing(false);
-              reject(new Error("Analysis timeout - unexpected status format"));
-            }
-          }
-        } catch (error) {
-          console.error("Polling error:", error);
-          attempts++;
-          if (attempts < maxAttempts) {
-            // Retry on error
-            setTimeout(poll, pollInterval);
-          } else {
-            setAnalyzing(false);
-            reject(error);
-          }
-        }
-      };
+    const fakeProducts: Product[] = [
+      {
+        id: 1,
+        name: "Acne Cleanser",
+        price_html: "₦6,000",
+        brand: "Beauty Hub",
+        image: "/images/product1.jpg",
+        link: "#",
+      },
+      {
+        id: 2,
+        name: "Wrinkle Repair Serum",
+        price_html: "₦9,500",
+        brand: "GlowPro",
+        image: "/images/product2.jpg",
+        link: "#",
+      },
+    ];
 
-      poll();
-    });
+    setPendingProducts(fakeProducts);
+    setIsLoginModalOpen(true);
+
+    return Promise.resolve(fakeSuccessResult);
   };
 
-  const handleCapture = async (e: unknown) => {
-    // @ts-expect-error: prop not in type but needed for dynamic rendering
-    const file = e.target.files[0];
+  const handleLoginSuccess = async (email: string, hasAccess: boolean) => {
+    setCustomerEmail(email);
+    setIsLoginModalOpen(false);
+
+    if (hasAccess) {
+      setIsAuthorized(true);
+      setFinalResults(pendingResults);
+      setProducts(pendingProducts);
+    } else {
+      triggerPaystackPopup({
+        email,
+        amount: 500000,
+        onSuccess: async () => {
+          try {
+            await createWooCompletedOrder(email, perfectSkinConsumerKey!, perfectSkinConsumerSecret!);
+            setIsAuthorized(true);
+            setFinalResults(pendingResults);
+            setProducts(pendingProducts);
+          } catch (err) {
+            console.log(err)
+            alert("Payment succeeded but order creation failed.");
+          }
+        },
+        onClose: () => alert("Payment cancelled."),
+      });
+    }
+  };
+
+  const handleCapture = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show preview
     const previewUrl = URL.createObjectURL(file);
-    // @ts-expect-error: prop not in type but needed for dynamic rendering
     setPreview(previewUrl);
 
     if (!accessToken) {
@@ -110,28 +139,18 @@ export default function Home() {
     }
 
     setUploading(true);
-    try {
-      // Upload the image
-      const uploadResult = await uploadImage(file, accessToken);
-      setUploadResponse(uploadResult);
-    } catch (err) {
-      console.error("Upload failed", err);
-      // @ts-expect-error: prop not in type but needed for dynamic rendering
-      alert(`Upload failed: ${err.message}`);
-    } finally {
-      setUploading(false);
-    }
+    uploadImage(file, accessToken)
+      .then(setUploadResponse)
+      .catch((err) => {
+        console.error("Upload failed", err);
+        alert(`Upload failed: ${(err as Error).message}`);
+      })
+      .finally(() => setUploading(false));
   };
 
   const handleRunAnalysis = async () => {
-    // @ts-expect-error: prop not in type but needed for dynamic rendering
-    if (!uploadResponse || !uploadResponse.file_id) {
-      alert("No uploaded image found. Please upload an image first.");
-      return;
-    }
-
-    if (!accessToken) {
-      alert("Access token not available.");
+    if (!uploadResponse?.file_id || !accessToken) {
+      alert("Upload an image first and ensure you're logged in.");
       return;
     }
 
@@ -140,46 +159,22 @@ export default function Home() {
     setFinalResults(null);
 
     try {
-      // Start skin analysis with the file ID from upload response
       const analysisResult = await analyzeSkinFeatures(
-        // @ts-expect-error: prop not in type but needed for dynamic rendering
         uploadResponse.file_id,
         accessToken,
         ["wrinkle", "pore", "texture", "acne"]
       );
-      // @ts-expect-error: prop not in type but needed for dynamic rendering
-      setAnalysisResponse(analysisResult);
 
-      // Extract task_id from the response
-      let taskId;
-      if (analysisResult.result && analysisResult.result.task_id) {
-        taskId = analysisResult.result.task_id;
-        // @ts-expect-error: prop not in type but needed for dynamic rendering
-      } else if (analysisResult.task_id) {
-        // @ts-expect-error: prop not in type but needed for dynamic rendering
-        taskId = analysisResult.task_id;
-      } else {
-        throw new Error("No task_id found in analysis response");
-      }
+      const taskId = analysisResult.result.task_id;
+      if (!taskId) throw new Error("No task_id found in analysis response");
 
-      // Poll for analysis completion
-      // Poll for analysis completion
       await pollAnalysisStatus(taskId, accessToken);
 
-      // After successful analysis, fetch relevant products
-      const resultTags = ["acne"]; // Example, you can derive this from `finalResults` later
-      const productResults = await getProductsByTagName(
-        resultTags[0], // or loop if multiple
-        perfectSkinConsumerKey!,
-        perfectSkinConsumerSecret!
-      );
-      console.log(productResults,"kj")
-
-      // setProducts(productResults);
+      setPendingResults(analysisStatus?.result?.results || null);
     } catch (err) {
       console.error("Analysis failed", err);
-      // @ts-expect-error: prop not in type but needed for dynamic rendering
-      alert(`Analysis failed: ${err.message}`);
+      alert(`Analysis failed: ${(err as Error).message}`);
+    } finally {
       setAnalyzing(false);
     }
   };
@@ -237,18 +232,18 @@ export default function Home() {
             disabled={uploading}
           />
 
-          {preview && (
+          {/* {preview && (
             <div>
               <p>
                 <strong>Preview:</strong>
               </p>
-              <Image
+              <img
                 src={preview}
                 alt="Preview"
                 style={{ maxWidth: "100%", height: "10rem", borderRadius: 8 }}
               />
             </div>
-          )}
+          )} */}
 
           {uploading && <p>Uploading image...</p>}
 
@@ -275,82 +270,43 @@ export default function Home() {
           {analyzing && (
             <div>
               <p>Analyzing skin... This may take a few moments.</p>
-
-              {/* {analysisStatus && analysisStatus.result && (
+              {analysisStatus?.result && (
                 <p>Status: {analysisStatus.result.status}</p>
-              )} */}
+              )}
             </div>
           )}
 
-          {uploadResponse && (
-            <div style={{ marginTop: "1rem" }}>
-              <p>
-                <strong>Upload Response:</strong>
-              </p>
-              <pre
-                style={{
-                  fontSize: "12px",
-                  background: "#f5f5f5",
-                  padding: "10px",
-                }}
-              >
-                {JSON.stringify(uploadResponse, null, 2)}
-              </pre>
+          {finalResults && isAuthorized && (
+            <div>
+              <h3>Analysis Results</h3>
+              <pre>{JSON.stringify(finalResults, null, 2)}</pre>
             </div>
           )}
 
-          {analysisResponse && (
-            <div style={{ marginTop: "1rem" }}>
-              <p>
-                <strong>Analysis Started:</strong>
-              </p>
-              <pre
-                style={{
-                  fontSize: "12px",
-                  background: "#f0f8ff",
-                  padding: "10px",
-                }}
-              >
-                {JSON.stringify(analysisResponse, null, 2)}
-              </pre>
+          {/* {isAuthorized && products.length > 0 && (
+            <div style={{ marginTop: "2rem" }}>
+              <h3>Recommended Products</h3>
+              {products.map((product) => (
+                <div key={product.id} style={{ marginBottom: "1rem" }}>
+                  <img src={product.image} alt={product.name} width={100} />
+                  <p>
+                    <strong>{product.name}</strong>
+                  </p>
+                  <p dangerouslySetInnerHTML={{ __html: product.price_html }} />
+                  <a href={product.link}>Shop Now</a>
+                </div>
+              ))}
             </div>
-          )}
+          )} */}
 
-          {analysisStatus && (
-            <div style={{ marginTop: "1rem" }}>
-              <p>
-                <strong>Current Analysis Status:</strong>
-              </p>
-              <pre
-                style={{
-                  fontSize: "12px",
-                  background: "#f0fff0",
-                  padding: "10px",
-                }}
-              >
-                {JSON.stringify(analysisStatus, null, 2)}
-              </pre>
-            </div>
-          )}
+          <ProductRecommender />
 
-          {finalResults && (
-            <div style={{ marginTop: "1rem" }}>
-              <p>
-                <strong>Final Analysis Results:</strong>
-              </p>
-              <pre
-                style={{
-                  fontSize: "12px",
-                  background: "#fff0f0",
-                  padding: "10px",
-                }}
-              >
-                {JSON.stringify(finalResults, null, 2)}
-              </pre>
-            </div>
+          {isLoginModalOpen && (
+            <LoginModal
+              onClose={() => setIsLoginModalOpen(false)}
+              onLoginSuccess={handleLoginSuccess}
+            />
           )}
-
-          {/* <ProductRecommender /> */}
         </div>
       </main>
       <Footer />
