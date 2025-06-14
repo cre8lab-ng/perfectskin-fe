@@ -22,16 +22,26 @@ function extractErrorMessage(error: unknown): string {
     typeof error === "object" &&
     error !== null &&
     "response" in error &&
-    typeof (error as any).response === "object"
+    typeof (error as { response: unknown }).response === "object"
   ) {
     const response = (error as { response: { data?: unknown } }).response;
-    if (response?.data) {
+    if ("data" in response && response.data) {
       return JSON.stringify(response.data);
     }
   }
 
-  return (error as { message?: string })?.message || "Unknown error";
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+
+  return "Unknown error";
 }
+
 
 
 
@@ -160,6 +170,7 @@ export default async function handler(
   } catch (error: unknown) {
     console.error("🔥 Woo API Error:", extractErrorMessage(error));
     return res.status(500).json({ error: "WooCommerce API error" });
-  }  
+  }
+  
   
 }
