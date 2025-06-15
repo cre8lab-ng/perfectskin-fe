@@ -61,7 +61,7 @@ export default function Home() {
           <div className="flex flex-col items-center">
             <div className="relative w-64 h-96">
               <Image
-                src="/images/1.jpg"
+                src="/images/step-1.png"
                 alt="Step 1 - Upload Selfie"
                 layout="fill"
                 objectFit="contain"
@@ -79,7 +79,7 @@ export default function Home() {
           <div className="flex flex-col items-center">
             <div className="relative w-64 h-96">
               <Image
-                src="/images/2.jpg"
+                src="/images/step-2.png"
                 alt="Step 2 - Skin Analysis"
                 layout="fill"
                 objectFit="contain"
@@ -96,7 +96,7 @@ export default function Home() {
           <div className="flex flex-col items-center">
             <div className="relative w-64 h-96">
               <Image
-                src="/images/2.jpg"
+                src="/images/step-3.png"
                 alt="Step 3 - Discover Routine"
                 layout="fill"
                 objectFit="contain"
