@@ -1,12 +1,15 @@
 import { useEffect, useState, ChangeEvent } from "react";
 import useAccessToken from "@/stores/useAccessToken";
 import { uploadImage, analyzeSkinFeatures } from "@/services/skinanalysis";
-import { getProductsByTagName, createWooCompletedOrder } from "@/services/woocommerce";
+// import { getProductsByTagName, createWooCompletedOrder } from "@/services/woocommerce";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import ProductRecommender from "@/components/product-recommender";
 import LoginModal from "@/components/modal/login";
+import InstructionModal from "@/components/modal/instruction-modal";
 import { loadPaystackScript, triggerPaystackPopup } from "@/util/paystack";
+import PrivacyConsentModal from "@/components/modal/privacy-consent-modal";
+import CameraPrompt from "@/components/camera-feed";
 
 interface Product {
   id: number;
@@ -37,29 +40,83 @@ export interface UploadResponse {
   url?: string;
 }
 
+// Dummy WooCommerce functions
+async function getProductsByTagName(tagName: string) {
+  console.log(`Simulated fetch for products with tag: ${tagName}`);
+  return [
+    {
+      id: 1,
+      name: `${tagName} Product 1`,
+      price_html: "₦5,000",
+      brand: "Test Brand",
+      image: "/images/placeholder1.jpg",
+      link: "#",
+    },
+    {
+      id: 2,
+      name: `${tagName} Product 2`,
+      price_html: "₦7,500",
+      brand: "Test Brand",
+      image: "/images/placeholder2.jpg",
+      link: "#",
+    },
+  ];
+}
+
+function dataURLtoFile(dataUrl: string, filename: string): File {
+  const arr = dataUrl.split(",");
+  const mime = arr[0].match(/:(.*?);/)?.[1] || "";
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+
+  return new File([u8arr], filename, { type: mime });
+}
+
+async function createWooCompletedOrder(email: string) {
+  console.log(`Simulated WooCommerce order for: ${email}`);
+  return { success: true };
+}
+
 export default function Home() {
   const accessToken = useAccessToken((s) => s.accessToken);
   const [preview, setPreview] = useState<string | null>(null);
-  const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(null);
+  const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(
+    null
+  );
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(
+    null
+  );
   const [finalResults, setFinalResults] = useState<AnalysisResult | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [pendingResults, setPendingResults] = useState<AnalysisResult | null>(null);
+  const [pendingResults, setPendingResults] = useState<AnalysisResult | null>(
+    null
+  );
   const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [customerEmail, setCustomerEmail] = useState("");
+  const [showInstructionModal, setShowInstructionModal] = useState(true);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showCameraPrompt, setShowCameraPrompt] = useState(false);
 
-  console.log(preview,products,customerEmail)
+  console.log(preview, products, customerEmail,uploadResponse,uploading,analyzing,finalResults,isAuthorized);
 
   useEffect(() => {
     loadPaystackScript();
   }, []);
 
-  const pollAnalysisStatus = async (taskId: string, accessToken: string): Promise<AnalysisStatus> => {
-    console.log(taskId,accessToken)
+  const pollAnalysisStatus = async (
+    taskId: string,
+    accessToken: string
+  ): Promise<AnalysisStatus> => {
+    console.log(taskId, accessToken);
 
     const fakeSuccessResult: AnalysisStatus = {
       result: {
@@ -130,8 +187,11 @@ export default function Home() {
     }
   };
 
-  const handleCapture = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleCapture = (
+    e?: ChangeEvent<HTMLInputElement>,
+    capturedFile?: File
+  ) => {
+    const file = capturedFile ?? e?.target?.files?.[0];
     if (!file) return;
 
     const previewUrl = URL.createObjectURL(file);
@@ -143,52 +203,47 @@ export default function Home() {
     }
 
     setUploading(true);
+
     uploadImage(file, accessToken)
-      .then(setUploadResponse)
-      .catch((err) => {
-        console.error("Upload failed", err);
-        alert(`Upload failed: ${(err as Error).message}`);
+      .then((res) => {
+        if (!res?.file_id) {
+          throw new Error("Upload failed: Missing file_id in response.");
+        }
+
+        setUploadResponse(res);
+
+        // Start analysis immediately
+        setAnalyzing(true);
+        return analyzeSkinFeatures(res.file_id, accessToken, [
+          "wrinkle",
+          "pore",
+          "texture",
+          "acne",
+        ]);
       })
-      .finally(() => setUploading(false));
-  };
+      .then((analysisResult) => {
+        const taskId = analysisResult.result.task_id;
+        if (!taskId) throw new Error("No task_id found in analysis response");
 
-  const handleRunAnalysis = async () => {
-    if (!uploadResponse?.file_id || !accessToken) {
-      alert("Upload an image first and ensure you're logged in.");
-      return;
-    }
-
-    setAnalyzing(true);
-    setAnalysisStatus(null);
-    setFinalResults(null);
-
-    try {
-      const analysisResult = await analyzeSkinFeatures(
-        uploadResponse.file_id,
-        accessToken,
-        ["wrinkle", "pore", "texture", "acne"]
-      );
-
-      const taskId = analysisResult.result.task_id;
-      if (!taskId) throw new Error("No task_id found in analysis response");
-
-      await pollAnalysisStatus(taskId, accessToken);
-
-      setPendingResults(analysisStatus?.result?.results || null);
-    } catch (err) {
-      console.error("Analysis failed", err);
-      alert(`Analysis failed: ${(err as Error).message}`);
-    } finally {
-      setAnalyzing(false);
-    }
+        return pollAnalysisStatus(taskId, accessToken);
+      })
+      .then(() => {
+        setPendingResults(analysisStatus?.result?.results || null);
+      })
+      .catch((err) => {
+        console.error("Upload or analysis failed", err);
+        alert(`Failed: ${(err as Error).message}`);
+      })
+      .finally(() => {
+        setUploading(false);
+        setAnalyzing(false);
+      });
   };
 
   useEffect(() => {
     async function fetchTestProducts() {
       try {
-        const productResults = await getProductsByTagName(
-          "acne"
-        );
+        const productResults = await getProductsByTagName("acne");
         console.log(productResults);
       } catch (err) {
         console.error("Error fetching test products:", err);
@@ -200,84 +255,69 @@ export default function Home() {
 
   return (
     <>
+      {showInstructionModal && (
+        <InstructionModal
+          onClose={() => {
+            setShowInstructionModal(false);
+            setShowPrivacyModal(true);
+          }}
+        />
+      )}
+
+      {showPrivacyModal && (
+        <PrivacyConsentModal
+          onAgree={() => {
+            setShowPrivacyModal(false);
+            setShowCameraPrompt(true); // 👈 this triggers the camera prompt
+          }}
+        />
+      )}
+
       <Header />
-      <main
-        style={{
-          padding: "1rem",
-          backgroundImage: "url('/images/perfectskin.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          minHeight: "50vh",
-        }}
-      >
-        <div
+      {showCameraPrompt && (
+        <CameraPrompt
+          onCapture={(imageData) => {
+            setShowCameraPrompt(false);
+            setPreview(imageData);
+
+            const file = dataURLtoFile(imageData, "captured.jpg");
+            handleCapture(undefined, file);
+          }}
+        />
+      )}
+      {!showCameraPrompt && (
+        <main
           style={{
-            backgroundColor: "white",
-            padding: "2rem",
-            maxWidth: "600px",
-            margin: "2rem auto",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+            padding: "1rem",
+            backgroundImage: "url('/images/perfectskin.jpg')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            minHeight: "50vh",
           }}
         >
-          <p><strong>Take a picture and upload it for skin analysis</strong></p>
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "2rem",
+              maxWidth: "600px",
+              margin: "2rem auto",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+            }}
+          >
+            <ProductRecommender />
 
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleCapture}
-            style={{ margin: "1em 0" }}
-            disabled={uploading}
-          />
+            {isLoginModalOpen && (
+              <LoginModal
+                onClose={() => setIsLoginModalOpen(false)}
+                onLoginSuccess={handleLoginSuccess}
+              />
+            )}
+          </div>
+        </main>
+      )}
 
-          {uploading && <p>Uploading image...</p>}
-
-          {uploadResponse && (
-            <div style={{ margin: "1rem 0" }}>
-              <button
-                onClick={handleRunAnalysis}
-                disabled={analyzing}
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: analyzing ? "#6c757d" : "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "5px",
-                  cursor: analyzing ? "not-allowed" : "pointer",
-                  fontSize: "16px",
-                }}
-              >
-                {analyzing ? "Analyzing..." : "Run Skin Analysis Now"}
-              </button>
-            </div>
-          )}
-
-          {analyzing && (
-            <div>
-              <p>Analyzing skin... This may take a few moments.</p>
-              {analysisStatus?.result && <p>Status: {analysisStatus.result.status}</p>}
-            </div>
-          )}
-
-          {finalResults && isAuthorized && (
-            <div>
-              <h3>Analysis Results</h3>
-              <pre>{JSON.stringify(finalResults, null, 2)}</pre>
-            </div>
-          )}
-
-          <ProductRecommender />
-
-          {isLoginModalOpen && (
-            <LoginModal
-              onClose={() => setIsLoginModalOpen(false)}
-              onLoginSuccess={handleLoginSuccess}
-            />
-          )}
-        </div>
-      </main>
       <Footer />
     </>
   );

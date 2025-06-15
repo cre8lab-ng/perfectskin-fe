@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { hasUserCompletedOrder, createWooCompletedOrder } from "@/services/woocommerce";
+// import { hasUserCompletedOrder, createWooCompletedOrder } from "@/services/woocommerce";
 import { triggerPaystackPopup } from "@/util/paystack";
 import {  notifySuccess } from "@/util/utils";
 
@@ -8,6 +8,22 @@ type Props = {
   onClose: () => void;
   onLoginSuccess: (email: string, hasAccess: boolean) => void;
 };
+
+// Dummy WooCommerce API replacements
+
+async function hasUserCompletedOrder(email: string): Promise<boolean> {
+  console.log(`Simulating check for completed order by: ${email}`);
+  // Always return false or toggle based on testing
+  return false;
+}
+
+async function createWooCompletedOrder(email: string): Promise<{ success: boolean }> {
+  console.log(`Simulating WooCommerce order creation for: ${email}`);
+  // Simulate delay
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  return { success: true };
+}
+
 
 export default function LoginModal({ onClose, onLoginSuccess }: Props) {
   const [email, setEmail] = useState("");
