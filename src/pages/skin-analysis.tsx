@@ -40,40 +40,15 @@ export interface UploadResponse {
   url?: string;
 }
 
-// Dummy WooCommerce functions
-async function getProductsByTagName(tagName: string) {
-  console.log(`Simulated fetch for products with tag: ${tagName}`);
-  return [
-    {
-      id: 1,
-      name: `${tagName} Product 1`,
-      price_html: "₦5,000",
-      brand: "Test Brand",
-      image: "/images/placeholder1.jpg",
-      link: "#",
-    },
-    {
-      id: 2,
-      name: `${tagName} Product 2`,
-      price_html: "₦7,500",
-      brand: "Test Brand",
-      image: "/images/placeholder2.jpg",
-      link: "#",
-    },
-  ];
-}
-
 function dataURLtoFile(dataUrl: string, filename: string): File {
   const arr = dataUrl.split(",");
   const mime = arr[0].match(/:(.*?);/)?.[1] || "";
   const bstr = atob(arr[1]);
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
-
   while (n--) {
     u8arr[n] = bstr.charCodeAt(n);
   }
-
   return new File([u8arr], filename, { type: mime });
 }
 
@@ -102,11 +77,18 @@ export default function Home() {
   const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [customerEmail, setCustomerEmail] = useState("");
-  const [showInstructionModal, setShowInstructionModal] = useState(true);
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showInstructionModal, setShowInstructionModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(true);
   const [showCameraPrompt, setShowCameraPrompt] = useState(false);
 
-  console.log(preview, products, customerEmail,uploadResponse,uploading,analyzing,finalResults,isAuthorized);
+  console.log("preview:", preview);
+  console.log("uploadResponse:", uploadResponse);
+  console.log("uploading:", uploading);
+  console.log("analyzing:", analyzing);
+  console.log("finalResults:", finalResults);
+  console.log("products:", products);
+  console.log("isAuthorized:", isAuthorized);
+  console.log("customerEmail:", customerEmail);
 
   useEffect(() => {
     loadPaystackScript();
@@ -116,8 +98,12 @@ export default function Home() {
     taskId: string,
     accessToken: string
   ): Promise<AnalysisStatus> => {
-    console.log(taskId, accessToken);
-
+    console.log(
+      "Polling with taskId:",
+      taskId,
+      "and accessToken:",
+      accessToken
+    );
     const fakeSuccessResult: AnalysisStatus = {
       result: {
         status: "success",
@@ -155,14 +141,12 @@ export default function Home() {
 
     setPendingProducts(fakeProducts);
     setIsLoginModalOpen(true);
-
     return Promise.resolve(fakeSuccessResult);
   };
 
   const handleLoginSuccess = async (email: string, hasAccess: boolean) => {
     setCustomerEmail(email);
     setIsLoginModalOpen(false);
-
     if (hasAccess) {
       setIsAuthorized(true);
       setFinalResults(pendingResults);
@@ -172,15 +156,10 @@ export default function Home() {
         email,
         amount: 500000,
         onSuccess: async () => {
-          try {
-            await createWooCompletedOrder(email);
-            setIsAuthorized(true);
-            setFinalResults(pendingResults);
-            setProducts(pendingProducts);
-          } catch (err) {
-            console.log(err);
-            alert("Payment succeeded but order creation failed.");
-          }
+          await createWooCompletedOrder(email);
+          setIsAuthorized(true);
+          setFinalResults(pendingResults);
+          setProducts(pendingProducts);
         },
         onClose: () => alert("Payment cancelled."),
       });
@@ -193,26 +172,14 @@ export default function Home() {
   ) => {
     const file = capturedFile ?? e?.target?.files?.[0];
     if (!file) return;
-
     const previewUrl = URL.createObjectURL(file);
     setPreview(previewUrl);
-
-    if (!accessToken) {
-      alert("Access token not available yet.");
-      return;
-    }
-
+    if (!accessToken) return alert("Access token not available yet.");
     setUploading(true);
-
     uploadImage(file, accessToken)
       .then((res) => {
-        if (!res?.file_id) {
-          throw new Error("Upload failed: Missing file_id in response.");
-        }
-
+        if (!res?.file_id) throw new Error("Upload failed: Missing file_id.");
         setUploadResponse(res);
-
-        // Start analysis immediately
         setAnalyzing(true);
         return analyzeSkinFeatures(res.file_id, accessToken, [
           "wrinkle",
@@ -224,67 +191,53 @@ export default function Home() {
       .then((analysisResult) => {
         const taskId = analysisResult.result.task_id;
         if (!taskId) throw new Error("No task_id found in analysis response");
-
         return pollAnalysisStatus(taskId, accessToken);
       })
-      .then(() => {
-        setPendingResults(analysisStatus?.result?.results || null);
-      })
-      .catch((err) => {
-        console.error("Upload or analysis failed", err);
-        alert(`Failed: ${(err as Error).message}`);
-      })
+      .then(() => setPendingResults(analysisStatus?.result?.results || null))
+      .catch((err) => alert(`Failed: ${err.message}`))
       .finally(() => {
         setUploading(false);
         setAnalyzing(false);
       });
   };
 
-  useEffect(() => {
-    async function fetchTestProducts() {
-      try {
-        const productResults = await getProductsByTagName("acne");
-        console.log(productResults);
-      } catch (err) {
-        console.error("Error fetching test products:", err);
-      }
-    }
-
-    fetchTestProducts();
-  }, []);
-
   return (
     <>
-      {showInstructionModal && (
-        <InstructionModal
-          onClose={() => {
-            setShowInstructionModal(false);
-            setShowPrivacyModal(true);
-          }}
-        />
-      )}
-
       {showPrivacyModal && (
         <PrivacyConsentModal
           onAgree={() => {
             setShowPrivacyModal(false);
-            setShowCameraPrompt(true); // 👈 this triggers the camera prompt
+            setShowInstructionModal(true); // 👉 show this AFTER agreeing
+          }}
+        />
+      )}
+
+      {showInstructionModal && (
+        <InstructionModal
+          onTakeSelfie={() => {
+            setShowInstructionModal(false);
+            setShowCameraPrompt(true);
+          }}
+          onUploadPhoto={() => {
+            setShowInstructionModal(false);
+            document.getElementById("fileInput")?.click();
           }}
         />
       )}
 
       <Header />
+
       {showCameraPrompt && (
         <CameraPrompt
           onCapture={(imageData) => {
             setShowCameraPrompt(false);
             setPreview(imageData);
-
             const file = dataURLtoFile(imageData, "captured.jpg");
             handleCapture(undefined, file);
           }}
         />
       )}
+
       {!showCameraPrompt && (
         <main
           style={{
@@ -306,8 +259,14 @@ export default function Home() {
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
             }}
           >
+            <input
+              type="file"
+              id="fileInput"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => handleCapture(e)}
+            />
             <ProductRecommender />
-
             {isLoginModalOpen && (
               <LoginModal
                 onClose={() => setIsLoginModalOpen(false)}
