@@ -125,7 +125,7 @@ export default function Home() {
             setProducts(pendingProducts);
           } catch (err) {
             console.log(err)
-            alert("Payment succeeded but order creation failed.");
+            alert("Payment succeededd but order creation failed.");
           }
         },
         onClose: () => alert("Payment cancelled."),
