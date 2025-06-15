@@ -4,7 +4,6 @@ import { uploadImage, analyzeSkinFeatures } from "@/services/skinanalysis";
 // import { getProductsByTagName, createWooCompletedOrder } from "@/services/woocommerce";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
-import ProductRecommender from "@/components/product-recommender";
 import LoginModal from "@/components/modal/login";
 import InstructionModal from "@/components/modal/instruction-modal";
 import { loadPaystackScript, triggerPaystackPopup } from "@/util/paystack";
@@ -266,7 +265,7 @@ export default function Home() {
               style={{ display: "none" }}
               onChange={(e) => handleCapture(e)}
             />
-            <ProductRecommender />
+            {/* <ProductRecommender /> */}
             {isLoginModalOpen && (
               <LoginModal
                 onClose={() => setIsLoginModalOpen(false)}
