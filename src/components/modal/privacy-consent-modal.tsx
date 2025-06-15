@@ -37,8 +37,8 @@ export default function PrivacyConsentModal({
           disabled={!agreed}
           className={`w-full py-2 text-white rounded ${
             agreed
-              ? "bg-black hover:bg-gray-800"
-              : "bg-gray-400 cursor-not-allowed"
+              ? "bg-darkpink hover:bg-gray-800"
+              : "bg-lightpink cursor-not-allowed"
           }`}
         >
           SUBMIT
