@@ -1,14 +1,15 @@
 import { useEffect, useState, ChangeEvent } from "react";
 import useAccessToken from "@/stores/useAccessToken";
 import { uploadImage, analyzeSkinFeatures } from "@/services/skinanalysis";
-import { getProductsByTagName, createWooCompletedOrder } from "@/services/woocommerce";
-import env from "@/config/env";
+// import { getProductsByTagName, createWooCompletedOrder } from "@/services/woocommerce";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import ProductRecommender from "@/components/product-recommender";
 import LoginModal from "@/components/modal/login";
+import InstructionModal from "@/components/modal/instruction-modal";
 import { loadPaystackScript, triggerPaystackPopup } from "@/util/paystack";
-
+import PrivacyConsentModal from "@/components/modal/privacy-consent-modal";
+import CameraPrompt from "@/components/camera-feed";
 
 interface Product {
   id: number;
@@ -36,34 +37,73 @@ interface AnalysisStatus {
 
 export interface UploadResponse {
   file_id: string;
-  url?: string; // optional if not always returned
+  url?: string;
 }
 
+function dataURLtoFile(dataUrl: string, filename: string): File {
+  const arr = dataUrl.split(",");
+  const mime = arr[0].match(/:(.*?);/)?.[1] || "";
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
+
+async function createWooCompletedOrder(email: string) {
+  console.log(`Simulated WooCommerce order for: ${email}`);
+  return { success: true };
+}
 
 export default function Home() {
   const accessToken = useAccessToken((s) => s.accessToken);
   const [preview, setPreview] = useState<string | null>(null);
-  const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(null);
+  const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(
+    null
+  );
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(
+    null
+  );
   const [finalResults, setFinalResults] = useState<AnalysisResult | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [pendingResults, setPendingResults] = useState<AnalysisResult | null>(null);
+  const [pendingResults, setPendingResults] = useState<AnalysisResult | null>(
+    null
+  );
   const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [customerEmail, setCustomerEmail] = useState("");
-  console.log(customerEmail)
-  const { perfectSkinConsumerKey, perfectSkinConsumerSecret } = env;
+  const [showInstructionModal, setShowInstructionModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(true);
+  const [showCameraPrompt, setShowCameraPrompt] = useState(false);
+
+  console.log("preview:", preview);
+  console.log("uploadResponse:", uploadResponse);
+  console.log("uploading:", uploading);
+  console.log("analyzing:", analyzing);
+  console.log("finalResults:", finalResults);
+  console.log("products:", products);
+  console.log("isAuthorized:", isAuthorized);
+  console.log("customerEmail:", customerEmail);
 
   useEffect(() => {
     loadPaystackScript();
   }, []);
 
-  console.log(products,preview)
-  const pollAnalysisStatus = async (taskId: string, accessToken: string): Promise<AnalysisStatus> => {
-    console.log(taskId,accessToken)
+  const pollAnalysisStatus = async (
+    taskId: string,
+    accessToken: string
+  ): Promise<AnalysisStatus> => {
+    console.log(
+      "Polling with taskId:",
+      taskId,
+      "and accessToken:",
+      accessToken
+    );
     const fakeSuccessResult: AnalysisStatus = {
       result: {
         status: "success",
@@ -101,14 +141,12 @@ export default function Home() {
 
     setPendingProducts(fakeProducts);
     setIsLoginModalOpen(true);
-
     return Promise.resolve(fakeSuccessResult);
   };
 
   const handleLoginSuccess = async (email: string, hasAccess: boolean) => {
     setCustomerEmail(email);
     setIsLoginModalOpen(false);
-
     if (hasAccess) {
       setIsAuthorized(true);
       setFinalResults(pendingResults);
@@ -118,204 +156,127 @@ export default function Home() {
         email,
         amount: 500000,
         onSuccess: async () => {
-          try {
-            await createWooCompletedOrder(email, perfectSkinConsumerKey!, perfectSkinConsumerSecret!);
-            setIsAuthorized(true);
-            setFinalResults(pendingResults);
-            setProducts(pendingProducts);
-          } catch (err) {
-            console.log(err)
-            alert("Payment succeeded but order creation failed.");
-          }
+          await createWooCompletedOrder(email);
+          setIsAuthorized(true);
+          setFinalResults(pendingResults);
+          setProducts(pendingProducts);
         },
         onClose: () => alert("Payment cancelled."),
       });
     }
   };
 
-  const handleCapture = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleCapture = (
+    e?: ChangeEvent<HTMLInputElement>,
+    capturedFile?: File
+  ) => {
+    const file = capturedFile ?? e?.target?.files?.[0];
     if (!file) return;
-
     const previewUrl = URL.createObjectURL(file);
     setPreview(previewUrl);
-
-    if (!accessToken) {
-      alert("Access token not available yet.");
-      return;
-    }
-
+    if (!accessToken) return alert("Access token not available yet.");
     setUploading(true);
     uploadImage(file, accessToken)
-      .then(setUploadResponse)
-      .catch((err) => {
-        console.error("Upload failed", err);
-        alert(`Upload failed: ${(err as Error).message}`);
-      })
-      .finally(() => setUploading(false));
-  };
-
-  const handleRunAnalysis = async () => {
-    if (!uploadResponse?.file_id || !accessToken) {
-      alert("Upload an image first and ensure you're logged in.");
-      return;
-    }
-
-    setAnalyzing(true);
-    setAnalysisStatus(null);
-    setFinalResults(null);
-
-    try {
-      const analysisResult = await analyzeSkinFeatures(
-        uploadResponse.file_id,
-        accessToken,
-        ["wrinkle", "pore", "texture", "acne"]
-      );
-
-      const taskId = analysisResult.result.task_id;
-      if (!taskId) throw new Error("No task_id found in analysis response");
-
-      await pollAnalysisStatus(taskId, accessToken);
-
-      setPendingResults(analysisStatus?.result?.results || null);
-    } catch (err) {
-      console.error("Analysis failed", err);
-      alert(`Analysis failed: ${(err as Error).message}`);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  useEffect(() => {
-    async function fetchTestProducts() {
-      try {
-        const productResults = await getProductsByTagName(
+      .then((res) => {
+        if (!res?.file_id) throw new Error("Upload failed: Missing file_id.");
+        setUploadResponse(res);
+        setAnalyzing(true);
+        return analyzeSkinFeatures(res.file_id, accessToken, [
+          "wrinkle",
+          "pore",
+          "texture",
           "acne",
-          perfectSkinConsumerKey!,
-          perfectSkinConsumerSecret!
-        );
-        console.log(productResults);
-      } catch (err) {
-        console.error("Error fetching test products:", err);
-      }
-    }
-
-    fetchTestProducts();
-  }, [perfectSkinConsumerKey, perfectSkinConsumerSecret]);
+        ]);
+      })
+      .then((analysisResult) => {
+        const taskId = analysisResult.result.task_id;
+        if (!taskId) throw new Error("No task_id found in analysis response");
+        return pollAnalysisStatus(taskId, accessToken);
+      })
+      .then(() => setPendingResults(analysisStatus?.result?.results || null))
+      .catch((err) => alert(`Failed: ${err.message}`))
+      .finally(() => {
+        setUploading(false);
+        setAnalyzing(false);
+      });
+  };
 
   return (
     <>
+      {showPrivacyModal && (
+        <PrivacyConsentModal
+          onAgree={() => {
+            setShowPrivacyModal(false);
+            setShowInstructionModal(true); // 👉 show this AFTER agreeing
+          }}
+        />
+      )}
+
+      {showInstructionModal && (
+        <InstructionModal
+          onTakeSelfie={() => {
+            setShowInstructionModal(false);
+            setShowCameraPrompt(true);
+          }}
+          onUploadPhoto={() => {
+            setShowInstructionModal(false);
+            document.getElementById("fileInput")?.click();
+          }}
+        />
+      )}
+
       <Header />
-      <main
-        style={{
-          padding: "1rem",
-          backgroundImage: "url('/images/perfectskin.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          minHeight: "50vh",
-        }}
-      >
-        <div
+
+      {showCameraPrompt && (
+        <CameraPrompt
+          onCapture={(imageData) => {
+            setShowCameraPrompt(false);
+            setPreview(imageData);
+            const file = dataURLtoFile(imageData, "captured.jpg");
+            handleCapture(undefined, file);
+          }}
+        />
+      )}
+
+      {!showCameraPrompt && (
+        <main
           style={{
-            backgroundColor: "white",
-            padding: "2rem",
-            maxWidth: "600px",
-            margin: "2rem auto",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+            padding: "1rem",
+            backgroundImage: "url('/images/perfectskin.jpg')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            minHeight: "50vh",
           }}
         >
-          <p>
-            <strong>Take a picture and upload it for skin analysis</strong>
-          </p>
-
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleCapture}
-            style={{ margin: "1em 0" }}
-            disabled={uploading}
-          />
-
-          {/* {preview && (
-            <div>
-              <p>
-                <strong>Preview:</strong>
-              </p>
-              <img
-                src={preview}
-                alt="Preview"
-                style={{ maxWidth: "100%", height: "10rem", borderRadius: 8 }}
-              />
-            </div>
-          )} */}
-
-          {uploading && <p>Uploading image...</p>}
-
-          {uploadResponse && (
-            <div style={{ margin: "1rem 0" }}>
-              <button
-                onClick={handleRunAnalysis}
-                disabled={analyzing}
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: analyzing ? "#6c757d" : "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "5px",
-                  cursor: analyzing ? "not-allowed" : "pointer",
-                  fontSize: "16px",
-                }}
-              >
-                {analyzing ? "Analyzing..." : "Run Skin Analysis Now"}
-              </button>
-            </div>
-          )}
-
-          {analyzing && (
-            <div>
-              <p>Analyzing skin... This may take a few moments.</p>
-              {analysisStatus?.result && (
-                <p>Status: {analysisStatus.result.status}</p>
-              )}
-            </div>
-          )}
-
-          {finalResults && isAuthorized && (
-            <div>
-              <h3>Analysis Results</h3>
-              <pre>{JSON.stringify(finalResults, null, 2)}</pre>
-            </div>
-          )}
-
-          {/* {isAuthorized && products.length > 0 && (
-            <div style={{ marginTop: "2rem" }}>
-              <h3>Recommended Products</h3>
-              {products.map((product) => (
-                <div key={product.id} style={{ marginBottom: "1rem" }}>
-                  <img src={product.image} alt={product.name} width={100} />
-                  <p>
-                    <strong>{product.name}</strong>
-                  </p>
-                  <p dangerouslySetInnerHTML={{ __html: product.price_html }} />
-                  <a href={product.link}>Shop Now</a>
-                </div>
-              ))}
-            </div>
-          )} */}
-
-          <ProductRecommender />
-
-          {isLoginModalOpen && (
-            <LoginModal
-              onClose={() => setIsLoginModalOpen(false)}
-              onLoginSuccess={handleLoginSuccess}
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "2rem",
+              maxWidth: "600px",
+              margin: "2rem auto",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+            }}
+          >
+            <input
+              type="file"
+              id="fileInput"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => handleCapture(e)}
             />
-          )}
-        </div>
-      </main>
+            <ProductRecommender />
+            {isLoginModalOpen && (
+              <LoginModal
+                onClose={() => setIsLoginModalOpen(false)}
+                onLoginSuccess={handleLoginSuccess}
+              />
+            )}
+          </div>
+        </main>
+      )}
+
       <Footer />
     </>
   );
