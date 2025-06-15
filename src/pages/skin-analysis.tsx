@@ -200,6 +200,7 @@ export default function Home() {
       });
   };
 
+  console.log(LoginModal,isLoginModalOpen,handleLoginSuccess)
   return (
     <>
       {showPrivacyModal && (
@@ -237,7 +238,7 @@ export default function Home() {
         />
       )}
 
-      {!showCameraPrompt && (
+      {/* {!showCameraPrompt && (
         <main
           style={{
             padding: "1rem",
@@ -265,7 +266,7 @@ export default function Home() {
               style={{ display: "none" }}
               onChange={(e) => handleCapture(e)}
             />
-            {/* <ProductRecommender /> */}
+            <ProductRecommender />
             {isLoginModalOpen && (
               <LoginModal
                 onClose={() => setIsLoginModalOpen(false)}
@@ -274,7 +275,7 @@ export default function Home() {
             )}
           </div>
         </main>
-      )}
+      )} */}
 
       <Footer />
     </>
